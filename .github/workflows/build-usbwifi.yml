@@ -1,287 +1,81 @@
-name: Build PonWrt USB WiFi (Nokia XG-040G-MD UBI + OpenClash)
-
-# =========================================================
-# 自定义构建：Nokia XG-040G-MD (UBI) + OpenClash + USB 无线全支持
-# 目标：RTL8814AU, MT7612, MT7921, 通用 USB 无线网卡
-# 基础：ztb666ai/Actions-OpenWrt-AN758X (openclash 变体)
-# =========================================================
-
-env:
-  BUILD_ROOT: /workdir
-  SOURCE: 'fork'
-  FW_AUTHOR: 'usbwifi'
-  REPO_URL: https://github.com/ztb666ai/ponwrt
-  FEEDS_CONF: ''
-  DIY_P1_SH: diy-part1-usbwifi.sh
-  DIY_P2_SH: diy-part2.sh
-  DIY_P3_SH: diy-part3.sh
-  UPLOAD_BIN_DIR: false
-  UPLOAD_FIRMWARE: true
-  UPLOAD_RELEASE: true
-  USE_DL_CACHE: true
-  USE_CCACHE: false
-  TZ: Asia/Shanghai
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  REPO_BRANCH: master
-  SOC: an7581
-  PROFILE: nokia_xg-040g-md-ubi
-  BUILD_SCOPE: firmware
-  IGNORE_CACHE: 'false'
-  FW_BUILD_TIME: ''
-  FW_DESC_SUFFIX: ''
+name: Build PonWrt USB WiFi
 
 on:
   workflow_dispatch:
     inputs:
       source:
-        description: '编译源码仓库'
+        description: 'Source repo'
         required: true
         default: 'fork'
         type: choice
-        options:
-          - fork
-          - pbs05/ponwrt
+        options: [fork, pbs05/ponwrt]
       branch:
-        description: 'ponwrt 源码分支'
+        description: 'Branch'
         required: true
         default: 'master'
         type: choice
-        options:
-          - master
-          - pon
+        options: [master, pon]
       upload_release:
-        description: '固件发布到 Release'
+        description: 'Upload to Release'
         required: false
         default: 'true'
         type: choice
-        options:
-          - 'true'
-          - 'false'
-      ignore_cache:
-        description: '忽略工具链缓存强制重编'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+        options: ['true', 'false']
       fw_author:
-        description: '覆盖固件版本后缀作者名（留空 = usbwifi）'
+        description: 'Firmware author suffix'
         required: false
-        default: 'usbwifi'
+        default: 'huazhou2026'
 
 permissions:
   contents: write
   actions: write
+
+env:
+  BUILD_ROOT: /workdir
+  SOURCE: ${{ github.event.inputs.source || 'fork' }}
+  FW_AUTHOR: ${{ github.event.inputs.fw_author || 'huazhou2026' }}
+  REPO_URL: https://github.com/ztb666ai/ponwrt
+  REPO_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+  SOC: an7581
+  PROFILE: nokia_xg-040g-md-ubi
+  TZ: Asia/Shanghai
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      # =========================================================
-      # 0. 解析机型 -> 自动校正 SoC，导出 device name
-      # =========================================================
-      - name: Resolve device profile
+      - name: Setup
+        run: |
+          echo "week=$(date +%Y%W)" >> $GITHUB_OUTPUT
         id: resolve
-        run: |
-          PROFILE="${PROFILE}"
-          SOC="${SOC}"
-          echo "week=$(date +%Y%W)" >> "$GITHUB_OUTPUT"
-          if [ "$PROFILE" != "all" ]; then
-            case "$PROFILE" in
-              nokia_xg-040g-mf*) SOC="an7583" ;;
-              *) SOC="an7581" ;;
-            esac
-          fi
-          echo "SOC=$SOC" >> "$GITHUB_ENV"
-          echo "PROFILE=$PROFILE" >> "$GITHUB_ENV"
-          echo "DEVICE_NAME=ponwrt-${SOC}-${PROFILE}" >> "$GITHUB_ENV"
-          if [ "$PROFILE" = "all" ]; then
-            echo "CONFIG_FILE=configs/${SOC}.config" >> "$GITHUB_ENV"
-          else
-            echo "CONFIG_FILE=configs/${PROFILE}.config" >> "$GITHUB_ENV"
-          fi
-          echo "========================================"
-          echo "SoC : $SOC"
-          echo "Profile : $PROFILE"
-          echo "Source : ${SOURCE} (${REPO_URL})"
-          echo "Branch : ${REPO_BRANCH}"
-          echo "Scope : ${BUILD_SCOPE}"
-          echo "Author : ${FW_AUTHOR}"
-          echo "========================================"
 
-      # =========================================================
-      # 1. 释放空间 + 初始化编译环境
-      # =========================================================
-      - name: Free disk space & init build environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Free disk space
         run: |
-          # --- 删除预装大件 ---
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/lib/jvm \
-            /usr/local/share/powershell /usr/share/swift 2>/dev/null || true
-          sudo docker image prune --all --force 2>/dev/null || true
-          sudo -E apt-get -yqq purge firefox snapd 2>/dev/null || true
-          # --- 配置 8G Swap (aarch64 工具链/内核编译需要) ---
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo docker image prune -af 2>/dev/null || true
           sudo swapoff -a 2>/dev/null || true
-          sudo rm -f /swapfile
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile && sudo swapon /swapfile
-          # --- 安装编译依赖 ---
-          sudo -E apt-get -yqq update
-          sudo -E apt-get -yqq install build-essential clang llvm dwarves \
-            libssl-dev libelf-dev bc flex bison python3 python3-distutils \
-            xz-utils tar unzip zip zstd dos2unix ccache gettext \
-            rsync file wget curl git subversion 2>/dev/null || true
-          # 初始化编译环境
-          if [ -x "$GITHUB_WORKSPACE/scripts/init_build_environment.sh" ]; then
-            bash "$GITHUB_WORKSPACE/scripts/init_build_environment.sh" || true
-          else
-            sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)' || true
-          fi
-          sudo -E apt-get -yqq autoremove --purge
-          sudo -E apt-get -yqq clean
-          sudo -E timedatectl set-timezone "$TZ"
-          # --- 编译根目录 ---
-          sudo mkdir -p /workdir
-          sudo chown "$USER":"$USER" /workdir
-          echo "磁盘空间:"; df -hT
-          echo "内存/Swap:"; free -h
+          sudo fallocate -l 8G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+          sudo apt-get -yqq update && sudo apt-get -yqq install build-essential clang llvm dwarves libssl-dev libelf-dev bc flex bison python3 python3-distutils xz-utils tar unzip zip zstd dos2unix ccache gettext rsync file wget curl git subversion 2>/dev/null || true
+          sudo mkdir -p /workdir && sudo chown $USER:$USER /workdir
 
-      # =========================================================
-      # 2. 克隆源码
-      # =========================================================
-      - name: Clone source code
+      - name: Clone source
         run: |
-          cd "$BUILD_ROOT"
-          df -hT "$PWD"
-          git clone "$REPO_URL" -b "$REPO_BRANCH" --single-branch --depth=1 openwrt
-          ln -sf "$BUILD_ROOT/openwrt" "$GITHUB_WORKSPACE/openwrt"
-          echo "FW_AUTHOR=${FW_AUTHOR:-qwe}" >> "$GITHUB_ENV"
+          cd $BUILD_ROOT
+          git clone $REPO_URL -b $REPO_BRANCH --single-branch --depth=1 openwrt
+          ln -sf $BUILD_ROOT/openwrt $GITHUB_WORKSPACE/openwrt
           cd openwrt && echo "commit: $(git rev-parse --short HEAD)"
 
-      # =========================================================
-      # 2.5 内核 config 注入（平台无关符号 + SoC 特定块）
-      # AN7581: 软 AES (BS) + EIP-93 可选
-      # =========================================================
-      - name: Patch kernel config (generic + SoC-specific)
+      - name: Patch kernel config (AN7581 soft AES)
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          # ---------- 1) 平台无关：generic 层写 BBR1 ----------
-          GEN_CONF="target/linux/generic/config-6.18"
-          sed -i -e '/^CONFIG_TCP_CONG_BBR1=/d' \
-            -e '/^# CONFIG_TCP_CONG_BBR1 is not set$/d' "$GEN_CONF"
-          echo '# CONFIG_TCP_CONG_BBR1 is not set' >> "$GEN_CONF"
-          # ---------- 2) SoC 特定：crypto 块分发 ----------
-          case "$SOC" in
-            an7583) KCONF="target/linux/airoha/an7583/config-6.18" ;;
-            an7581) KCONF="target/linux/airoha/an7581/config-6.18" ;;
-            *) echo "::error::未知 SOC=$SOC"; exit 1 ;;
-          esac
-          [ -f "$KCONF" ] || { echo "::error::未找到 $KCONF"; exit 1; }
-          # 幂等剥除
-          for key in \
-            CRYPTO_AES CRYPTO_AES_ARM64 CRYPTO_AES_ARM64_BS \
-            CRYPTO_AES_ARM64_CE CRYPTO_AES_ARM64_CE_BLK CRYPTO_AES_ARM64_CE_CCM \
-            CRYPTO_AES_ARM64_NEON_BLK CRYPTO_SIMD \
-            CRYPTO_AUTHENC CRYPTO_CBC CRYPTO_CTR CRYPTO_XTS \
-            CRYPTO_GHASH CRYPTO_GHASH_ARM64_CE CRYPTO_GCM \
-            CRYPTO_HW CRYPTO_DEV_EIP93 \
-            CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN \
-            CRYPTO_USER_API_AEAD CRYPTO_USER_API_HASH CRYPTO_USER_API_SKCIPHER \
-            TCP_CONG_BBR1; do
-            sed -i -e "/^CONFIG_${key}=/d" -e "/^# CONFIG_${key} is not set$/d" "$KCONF"
-          done
-          case "$SOC" in
-            an7583)
-              cat >> "$KCONF" <<'EOF'
-CONFIG_CRYPTO_AES_ARM64=y
-CONFIG_CRYPTO_AES_ARM64_BS=y
-CONFIG_CRYPTO_AES_ARM64_CE=y
-CONFIG_CRYPTO_AES_ARM64_CE_BLK=y
-CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
-CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
-CONFIG_CRYPTO_AUTHENC=y
-CONFIG_CRYPTO_CBC=y
-CONFIG_CRYPTO_GHASH_ARM64_CE=y
-CONFIG_CRYPTO_HW=y
-CONFIG_CRYPTO_DEV_EIP93=m
-CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512
-CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256
-CONFIG_CRYPTO_USER_API_AEAD=y
-CONFIG_CRYPTO_USER_API_HASH=y
-CONFIG_CRYPTO_USER_API_SKCIPHER=y
-EOF
-              ;;
-            an7581)
-              cat >> "$KCONF" <<'EOF'
-CONFIG_CRYPTO_AES=y
-CONFIG_CRYPTO_AES_ARM64=y
-CONFIG_CRYPTO_AES_ARM64_BS=y
-CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
-CONFIG_CRYPTO_SIMD=y
-CONFIG_CRYPTO_CBC=y
-CONFIG_CRYPTO_CTR=y
-CONFIG_CRYPTO_XTS=y
-CONFIG_CRYPTO_GHASH=y
-CONFIG_CRYPTO_GCM=y
-CONFIG_CRYPTO_HW=y
-CONFIG_CRYPTO_DEV_EIP93=m
-CONFIG_CRYPTO_AUTHENC=y
-CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512
-CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256
-EOF
-              ;;
-          esac
-          # 3) SoC 层也补一份 BBR1
-          echo '# CONFIG_TCP_CONG_BBR1 is not set' >> "$KCONF"
-          # 4) 校验
-          case "$SOC" in
-            an7583) EXPECT=16 ;;
-            an7581) EXPECT=15 ;;
-          esac
-          GOT=$(grep -cE '^CONFIG_(CRYPTO|TCP_CONG_BBR1)' "$KCONF")
-          echo "内核 config 注入：$GOT / $EXPECT 条"
-          [ "$GOT" -ge "$EXPECT" ] || { echo "::error::配置注入不完整"; grep -E '^CONFIG_(CRYPTO|TCP)' "$KCONF"; exit 1; }
-          echo "✅ $SOC 内核 config 已注入"
-
-      # =========================================================
-      # 2.6 AN7581 内核软 AES / EIP-93 配置注入
-      # =========================================================
-      - name: Patch an7581 kernel crypto config
-        if: env.SOC == 'an7581'
-        run: |
-          cd "$BUILD_ROOT/openwrt"
+          cd $BUILD_ROOT/openwrt
           KCONF="target/linux/airoha/an7581/config-6.18"
-          if [ ! -f "$KCONF" ]; then
-            echo "::error::未找到 $KCONF，请核对 kernel patchver"
-            exit 1
-          fi
-          for key in \
-            CRYPTO_AES \
-            CRYPTO_AES_ARM64 \
-            CRYPTO_AES_ARM64_BS \
-            CRYPTO_AES_ARM64_NEON_BLK \
-            CRYPTO_SIMD \
-            CRYPTO_CBC \
-            CRYPTO_CTR \
-            CRYPTO_XTS \
-            CRYPTO_GHASH \
-            CRYPTO_GCM \
-            CRYPTO_HW \
-            CRYPTO_DEV_EIP93 \
-            CRYPTO_AUTHENC \
-            CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN \
-            CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN; do
-            sed -i -e "/^CONFIG_${key}=/d" -e "/^# CONFIG_${key} is not set$/d" "$KCONF"
+          for key in CRYPTO_AES CRYPTO_AES_ARM64 CRYPTO_AES_ARM64_BS CRYPTO_AES_ARM64_NEON_BLK CRYPTO_SIMD CRYPTO_CBC CRYPTO_CTR CRYPTO_XTS CRYPTO_GHASH CRYPTO_GCM CRYPTO_HW CRYPTO_DEV_EIP93 CRYPTO_AUTHENC CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN; do
+            sed -i -e "/^CONFIG_${key}=/d" -e "/^# CONFIG_${key} is not set$/d" $KCONF
           done
-          cat >> "$KCONF" <<'EOF'
+          cat >> $KCONF <<'EOF'
 CONFIG_CRYPTO_AES=y
 CONFIG_CRYPTO_AES_ARM64=y
 CONFIG_CRYPTO_AES_ARM64_BS=y
@@ -298,225 +92,98 @@ CONFIG_CRYPTO_AUTHENC=y
 CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512
 CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256
 EOF
-          GOT=$(grep -Ec '^CONFIG_(CRYPTO_AES=|CRYPTO_AES_ARM64=|CRYPTO_AES_ARM64_BS=|CRYPTO_AES_ARM64_NEON_BLK=|CRYPTO_SIMD=|CRYPTO_CBC=|CRYPTO_CTR=|CRYPTO_XTS=|CRYPTO_GHASH=|CRYPTO_GCM=|CRYPTO_HW=|CRYPTO_DEV_EIP93=m|CRYPTO_AUTHENC=|CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=|CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=)' "$KCONF")
-          echo "an7581 crypto 配置注入完成：$GOT / 15 条"
-          if [ "$GOT" -lt 15 ]; then
-            echo "::error::配置注入不完整"
-            grep -E '^CONFIG_CRYPTO' "$KCONF"
-            exit 1
-          fi
-          echo "✅ AN7581 软 AES / EIP-93 配置已写入 $KCONF"
 
-      # =========================================================
-      # 3. dl 下载缓存
-      # =========================================================
-      - name: Cache dl directory
+      - name: Cache dl
         if: env.USE_DL_CACHE == 'true'
         uses: actions/cache@v5
-        continue-on-error: true
         with:
           path: /workdir/openwrt/dl
-          key: ponwrt-dl-${{ env.SOURCE }}-${{ github.event.inputs.branch || 'master' }}-${{ steps.resolve.outputs.week }}
-          restore-keys: |
-            ponwrt-dl-${{ env.SOURCE }}-${{ github.event.inputs.branch || 'master' }}-
+          key: ponwrt-dl-${{ env.SOURCE }}-${{ env.REPO_BRANCH }}-${{ steps.resolve.outputs.week }}
+          restore-keys: ponwrt-dl-${{ env.SOURCE }}-${{ env.REPO_BRANCH }}-
           save-always: true
 
-      # =========================================================
-      # 4. 更新并安装 Feeds
-      # =========================================================
-      - name: Update & install feeds
+      - name: Update feeds
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          if [ -n "${FEEDS_CONF}" ] && [ -e "$GITHUB_WORKSPACE/${FEEDS_CONF}" ]; then
-            cp "$GITHUB_WORKSPACE/${FEEDS_CONF}" feeds.conf.default
-          fi
+          cd $BUILD_ROOT/openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # =========================================================
-      # 5. diy-part1.sh —— 拉取可选插件 (已启用 OpenClash)
-      # =========================================================
-      - name: Pull optional plugins (diy-part1.sh)
+      - name: Pull plugins (diy-part1)
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          chmod +x "$GITHUB_WORKSPACE/$DIY_P1_SH"
-          "$GITHUB_WORKSPACE/$DIY_P1_SH"
+          cd $BUILD_ROOT/openwrt
+          cp $GITHUB_WORKSPACE/diy-part1-usbwifi.sh .
+          chmod +x diy-part1-usbwifi.sh
+          ./diy-part1-usbwifi.sh
 
-      # =========================================================
-      # 6. 加载 .config —— 源码基座 defconfig 打底 + 机型精简配置追加
-      # =========================================================
-      - name: Load custom configuration
+      - name: Load configs
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          [ -e "$GITHUB_WORKSPACE/files" ] && cp -r "$GITHUB_WORKSPACE/files" files
-          [ -d files/sbin ] && chmod +x files/sbin/* 2>/dev/null
-          [ -d files/etc/uci-defaults ] && chmod +x files/etc/uci-defaults/* 2>/dev/null
-          # 关键：先用源码自带的 configs/.config 基座打底
-          if [ -f "configs/${SOC}.config" ]; then
-            cp "configs/${SOC}.config" .config
-            echo "✅ 已用源码基座 defconfig 打底: configs/${SOC}.config"
-          else
-            : > .config
-            echo "::warning::源码中无 configs/${SOC}.config，仅用精简配置"
-          fi
-          # 再追加机型精简配置（其中的 =y / is not set 会覆盖基座）
-          if [ -e "$GITHUB_WORKSPACE/${CONFIG_FILE}" ]; then
-            cat "$GITHUB_WORKSPACE/${CONFIG_FILE}" >> .config
-            echo "✅ 已追加机型配置: ${CONFIG_FILE}"
-          elif [ -e "$GITHUB_WORKSPACE/configs/${SOC}.config" ]; then
-            cat "$GITHUB_WORKSPACE/configs/${SOC}.config" >> .config
-            echo "✅ 已追加 SoC 通用配置"
-          else
-            echo "::error::找不到机型配置 ${CONFIG_FILE}"
-            exit 1
-          fi
+          cd $BUILD_ROOT/openwrt
+          [ -f "configs/${SOC}.config" ] && cp "configs/${SOC}.config" .config || : > .config
+          cp $GITHUB_WORKSPACE/configs/nokia_xg-040g-md-ubi-usbwifi.config configs/nokia_xg-040g-md-ubi.config
+          cat configs/nokia_xg-040g-md-ubi.config >> .config
+          sed -i '/CONFIG_TARGET_DEVICE_/d; /^CONFIG_TARGET_MULTI_PROFILE=/d' .config
+          echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
+          echo "CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y" >> .config
+          echo 'CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=""' >> .config
 
-      # =========================================================
-      # 7. 按机型裁剪: 只保留一个 TARGET_DEVICE
-      # =========================================================
-      - name: Apply device profile
+      - name: Customize (diy-part2)
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          if [ "${PROFILE}" = "all" ]; then
-            echo "全机型编译，不做裁剪"
-          else
-            sed -i '/CONFIG_TARGET_DEVICE_/d; /^CONFIG_TARGET_MULTI_PROFILE=/d' .config
-            {
-              echo "CONFIG_TARGET_MULTI_PROFILE=y"
-              echo "CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y"
-              echo "CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=\"\""
-            } >> .config
-            echo "已裁剪为: CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y"
-          fi
+          cd $BUILD_ROOT/openwrt
+          curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part2.sh -o diy-part2.sh
+          chmod +x diy-part2.sh
+          FW_AUTHOR=$FW_AUTHOR TZ=$TZ ./diy-part2.sh
 
-      # =========================================================
-      # 8. diy-part2.sh —— 时区改为中国、写入固件版本后缀
-      # =========================================================
-      - name: Customize defaults (diy-part2.sh)
-        env:
-          FW_AUTHOR: ${{ env.FW_AUTHOR }}
-          FW_BUILD_TIME: ${{ env.FW_BUILD_TIME }}
-          FW_DESC_SUFFIX: ${{ env.FW_DESC_SUFFIX }}
-          TZ: ${{ env.TZ }}
+      - name: Inject OpenClash
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          chmod +x "$GITHUB_WORKSPACE/$DIY_P2_SH"
-          "$GITHUB_WORKSPACE/$DIY_P2_SH"
-
-      # =========================================================
-      # 8.5 代理变体注入 —— OpenClash
-      # =========================================================
-      - name: Inject OpenClash variant
-        run: |
-          cd "$BUILD_ROOT/openwrt"
-          # OpenClash 依赖 luci-compat
-          sed -i '/^CONFIG_PACKAGE_luci-app-openclash=/d; /^# CONFIG_PACKAGE_luci-app-openclash is not set/d' .config
-          sed -i '/^CONFIG_PACKAGE_luci-compat=/d; /^# CONFIG_PACKAGE_luci-compat is not set/d' .config
-          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
-          echo "CONFIG_PACKAGE_luci-compat=y" >> .config
-          # 确保依赖项已启用
-          for pkg in ca-bundle curl libopenssl ruby ruby-yaml ruby-json ruby-base64; do
+          cd $BUILD_ROOT/openwrt
+          for pkg in luci-app-openclash luci-compat ca-bundle curl libopenssl ruby ruby-yaml ruby-json ruby-base64; do
             sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
             echo "CONFIG_PACKAGE_${pkg}=y" >> .config
           done
-          echo "✅ OpenClash 变体已注入 .config"
 
-      # =========================================================
-      # 9. diy-part3.sh —— 中文翻译白名单精简
-      # =========================================================
-      - name: Trim translations (diy-part3.sh)
+      - name: Trim translations (diy-part3)
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          chmod +x "$GITHUB_WORKSPACE/$DIY_P3_SH"
-          KEEP="base luci-app-airoha-npu luci-app-openclash" "$GITHUB_WORKSPACE/$DIY_P3_SH"
+          cd $BUILD_ROOT/openwrt
+          curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part3.sh -o diy-part3.sh
+          chmod +x diy-part3.sh
+          KEEP="base luci-app-airoha-npu luci-app-openclash" ./diy-part3.sh
 
-      # =========================================================
-      # 10. defconfig 最终确认
-      # =========================================================
       - name: Final defconfig
         run: |
-          cd "$BUILD_ROOT/openwrt"
+          cd $BUILD_ROOT/openwrt
           make defconfig
 
-      # =========================================================
-      # 11. 下载编译依赖
-      # =========================================================
-      - name: Download build dependencies
+      - name: Download
         run: |
-          cd "$BUILD_ROOT/openwrt"
+          cd $BUILD_ROOT/openwrt
           make download -j$(nproc) || true
 
-      # =========================================================
-      # 12. 编译固件
-      # =========================================================
-      - name: Build firmware
+      - name: Build
         run: |
-          cd "$BUILD_ROOT/openwrt"
+          cd $BUILD_ROOT/openwrt
           make -j$(nproc) V=s 2>&1 | tee build.log
-          echo "BUILD_STATUS=$?" >> "$GITHUB_ENV"
 
-      # =========================================================
-      # 13. 整理产物
-      # =========================================================
       - name: Collect artifacts
-        if: env.BUILD_STATUS == '0'
+        if: success()
         run: |
-          cd "$BUILD_ROOT/openwrt"
-          mkdir -p "$BUILD_ROOT/artifacts"
-          # 查找并复制 .itb / .ubi / .img 等镜像文件
-          find bin/targets -name "*.itb" -o -name "*.ubi" -o -name "*.img" -o -name "*.tar.gz" | head -20 | while read f; do
-            cp "$f" "$BUILD_ROOT/artifacts/"
-          done
-          # 复制 packages 目录（可选）
-          # cp -r bin/packages "$BUILD_ROOT/artifacts/" 2>/dev/null || true
-          ls -la "$BUILD_ROOT/artifacts/"
+          cd $BUILD_ROOT/openwrt
+          mkdir -p $BUILD_ROOT/artifacts
+          find bin/targets -name "*.itb" -o -name "*.ubi" -o -name "*.img" | head -20 | xargs -I{} cp {} $BUILD_ROOT/artifacts/
 
-      # =========================================================
-      # 14. 上传 Artifact
-      # =========================================================
-      - name: Upload firmware artifact
-        if: env.BUILD_STATUS == '0'
+      - name: Upload artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ponwrt-${{ env.SOC }}-${{ env.PROFILE }}-openclash-usbwifi
+          name: ponwrt-an7581-nokia_xg-040g-md-ubi-openclash-usbwifi
           path: /workdir/artifacts/**
           retention-days: 30
 
-      # =========================================================
-      # 15. 创建 Release (可选)
-      # =========================================================
       - name: Create Release
-        if: env.BUILD_STATUS == '0' && github.event.inputs.upload_release == 'true'
+        if: success() && github.event.inputs.upload_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.SOC }}-${{ env.PROFILE }}-${{ github.run_number }}
-          name: PonWrt ${{ env.SOC }} ${{ env.PROFILE }} OpenClash+USB-WiFi #${{ github.run_number }}
-          body: |
-            **构建信息**
-            - SoC: ${{ env.SOC }} (AN7581)
-            - 机型: Nokia XG-040G-MD (UBI)
-            - 变体: OpenClash + USB 无线全支持
-            - 内核: Linux 6.18
-            - 包管理: APK
-            - 作者: ${{ env.FW_AUTHOR }}
-            - 构建时间: $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')
-            
-            **USB 无线驱动支持**
-            - Realtek: RTL8814AU (kmod-rtw88-8814au), RTL8812CU, RTL8821CU, RTL8822CU, RTL88x2CU
-            - MediaTek: MT7612/MT76x2U (kmod-mt76x2u), MT7916U (kmod-mt7916u), MT7921U (kmod-mt7921u), MT7925U (kmod-mt7925u)
-            - Atheros: AR9271/AR7010 (kmod-ath9k-htc)
-            - 无线工具: iw, wireless-tools, wpad-openssl, wireless-regdb
+          name: PonWrt ${{ env.SOC }} ${{ env.PROFILE }} USB WiFi #${{ github.run_number }}
           files: /workdir/artifacts/**
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # =========================================================
-      # 16. SSH 调试 (仅 main 分支、仓库所有者)
-      # =========================================================
-      - name: SSH connection to Actions
-        if: env.BUILD_STATUS != '0' && github.event.inputs.ssh == 'true' && github.repository_owner == github.actor && github.ref == 'refs/heads/main'
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
