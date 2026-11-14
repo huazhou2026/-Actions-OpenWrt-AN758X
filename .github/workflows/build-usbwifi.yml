@@ -49,8 +49,7 @@ jobs:
 
       - name: Setup
         id: resolve
-        run: |
-          echo "week=$(date +%Y%W)" >> $GITHUB_OUTPUT
+        run: echo "week=$(date +%Y%W)" >> $GITHUB_OUTPUT
 
       - name: Free disk space
         run: |
@@ -75,23 +74,23 @@ jobs:
           for key in CRYPTO_AES CRYPTO_AES_ARM64 CRYPTO_AES_ARM64_BS CRYPTO_AES_ARM64_NEON_BLK CRYPTO_SIMD CRYPTO_CBC CRYPTO_CTR CRYPTO_XTS CRYPTO_GHASH CRYPTO_GCM CRYPTO_HW CRYPTO_DEV_EIP93 CRYPTO_AUTHENC CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN; do
             sed -i -e "/^CONFIG_${key}=/d" -e "/^# CONFIG_${key} is not set$/d" $KCONF
           done
-          cat >> $KCONF <<'EOF'
-CONFIG_CRYPTO_AES=y
-CONFIG_CRYPTO_AES_ARM64=y
-CONFIG_CRYPTO_AES_ARM64_BS=y
-CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
-CONFIG_CRYPTO_SIMD=y
-CONFIG_CRYPTO_CBC=y
-CONFIG_CRYPTO_CTR=y
-CONFIG_CRYPTO_XTS=y
-CONFIG_CRYPTO_GHASH=y
-CONFIG_CRYPTO_GCM=y
-CONFIG_CRYPTO_HW=y
-CONFIG_CRYPTO_DEV_EIP93=m
-CONFIG_CRYPTO_AUTHENC=y
-CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512
-CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256
-EOF
+          printf '%s\n' \
+            'CONFIG_CRYPTO_AES=y' \
+            'CONFIG_CRYPTO_AES_ARM64=y' \
+            'CONFIG_CRYPTO_AES_ARM64_BS=y' \
+            'CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y' \
+            'CONFIG_CRYPTO_SIMD=y' \
+            'CONFIG_CRYPTO_CBC=y' \
+            'CONFIG_CRYPTO_CTR=y' \
+            'CONFIG_CRYPTO_XTS=y' \
+            'CONFIG_CRYPTO_GHASH=y' \
+            'CONFIG_CRYPTO_GCM=y' \
+            'CONFIG_CRYPTO_HW=y' \
+            'CONFIG_CRYPTO_DEV_EIP93=m' \
+            'CONFIG_CRYPTO_AUTHENC=y' \
+            'CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512' \
+            'CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256' \
+            >> $KCONF
 
       - name: Cache dl
         if: ${{ env.USE_DL_CACHE == 'true' }}
