@@ -29,7 +29,6 @@ readonly ADD_SMARTDNS=false     # luci-app-smartdns
 # ---------------------------------------------------------
 # 插件清单——"开关 + 仓库 + 目录 + 分支"集中在这里
 # 新增插件只需加一行，不再到处复制粘贴
-if
 # ---------------------------------------------------------
 readonly PKG_LIST=(
     "luci-app-airoha-npu|${ADD_AIROHA_NPU}|https://github.com/luanmuc/luci-app-airoha-npu|main"
@@ -246,3 +245,4 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     } >> "$GITHUB_STEP_SUMMARY"
 fi
 log "🎉 diy-part1.sh 执行完毕"
+endgroup
