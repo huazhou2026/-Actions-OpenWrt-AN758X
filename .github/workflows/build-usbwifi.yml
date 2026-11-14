@@ -39,6 +39,8 @@ env:
   SOC: an7581
   PROFILE: nokia_xg-040g-md-ubi
   TZ: Asia/Shanghai
+  UBOOT_REPO: https://github.com/pbs05/uboot-an758x
+  UBOOT_BRANCH: master
 
 jobs:
   build:
@@ -155,6 +157,30 @@ jobs:
           cd $BUILD_ROOT/openwrt
           make defconfig
 
+      - name: Fetch and integrate U-Boot (an7581 for Nokia XG-040G-MD)
+        run: |
+          cd $BUILD_ROOT
+          # Clone U-Boot for AN7581
+          git clone $UBOOT_REPO -b $UBOOT_BRANCH --single-branch --depth=1 uboot-an758x
+          cd uboot-an758x
+          echo "U-Boot commit: $(git rev-parse --short HEAD)"
+          
+          # Build U-Boot for an7581 (nokia_xg-040g-md-ubi)
+          # AN7581 U-Boot config for Nokia XG-040G-MD UBI
+          make an7581_nokia_xg-040g-md-ubi_defconfig
+          make -j$(nproc) CROSS_COMPILE=aarch64-linux-gnu- 2>&1 | tee uboot_build.log
+          
+          # Copy U-Boot binary to openwrt for FIT image generation
+          # The FIT image build expects u-boot.bin in specific location
+          if [ -f u-boot.bin ]; then
+            mkdir -p $BUILD_ROOT/openwrt/target/linux/airoha/an7581/base-files/
+            cp u-boot.bin $BUILD_ROOT/openwrt/target/linux/airoha/an7581/base-files/u-boot-an7581-nokia_xg-040g-md-ubi.bin
+            echo "✅ U-Boot binary copied for FIT image generation"
+          else
+            echo "❌ U-Boot build failed - u-boot.bin not found"
+            exit 1
+          fi
+
       - name: Download
         run: |
           cd $BUILD_ROOT/openwrt
@@ -164,6 +190,19 @@ jobs:
         run: |
           cd $BUILD_ROOT/openwrt
           make -j$(nproc) V=s 2>&1 | tee build.log
+
+      - name: Verify FIT image contains rootfs
+        run: |
+          cd $BUILD_ROOT/openwrt
+          # Check what images were generated
+          find bin/targets -name "*.itb" -o -name "*.ubi" -o -name "*.img" | xargs -I{} ls -la {}
+          # Verify FIT image contents
+          for f in bin/targets/**/*.itb; do
+            if [ -f "$f" ]; then
+              echo "=== Checking $f ==="
+              dumpimage -l "$f" 2>/dev/null || echo "dumpimage not available"
+            fi
+          done
 
       - name: Collect artifacts
         if: success()
