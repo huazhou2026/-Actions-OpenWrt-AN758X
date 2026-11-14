@@ -1,0 +1,46 @@
+# Full lsmod output for WiFi-related modules
+Module                  Size  Used by
+air_en8811h            16384  1 
+airoha_en7572          20480  1 
+airoha_pon_frontend_core   12288  2 airoha_en7572,airoha_xpon
+airoha_xpon            90112  0 
+ath                    24576  3 ath9k_htc,ath9k_common,ath9k_hw
+ath9k_common           24576  1 ath9k_htc
+ath9k_htc              73728  0 
+ath9k_hw              348160  2 ath9k_htc,ath9k_common
+cfg80211              380928 13 ath9k_htc,ath9k_common,mt7925_common,mt7921_common,ath,rtw88_core,mt76x2_common,mt76x02_usb,mt76x02_lib,mt7615_common,mt76_connac_lib,mt76,mac80211
+compat                 12288  9 rtw88_8812au,rtw88_8723du,ath9k_htc,rtw88_8822cu,rtw88_8822bu,rtw88_8821cu,rtw88_8814au,mac80211,cfg80211
+hwmon                  20480  3 mt7925_common,mt7921_common,mt7615_common
+mac80211              720896 15 ath9k_htc,mt7925_common,mt7921_common,rtw88_usb,rtw88_core,mt792x_lib,mt76x2u,mt76x02_usb,mt76x02_lib,mt7663u,mt7663_usb_sdio_common,mt7615_common,mt76_usb,mt76_connac_lib,mt76
+mt76                   90112 15 mt7925u,mt7925_common,mt7921u,mt7921_common,mt792x_usb,mt792x_lib,mt76x2u,mt76x2_common,mt76x02_usb,mt76x02_lib,mt7663u,mt7663_usb_sdio_common,mt7615_common,mt76_usb,mt76_connac_lib
+mt76_connac_lib        53248  8 mt7925u,mt7925_common,mt7921u,mt7921_common,mt792x_lib,mt7663u,mt7663_usb_sdio_common,mt7615_common
+mt76_usb               20480  6 mt7925u,mt7921u,mt792x_usb,mt76x2u,mt76x02_usb,mt7663u
+mt7615_common          90112  2 mt7663u,mt7663_usb_sdio_common
+mt7663_usb_sdio_common   12288  1 mt7663u
+mt7663u                12288  0 
+mt76x02_lib            53248  3 mt76x2u,mt76x2_common,mt76x02_usb
+mt76x02_usb            16384  1 mt76x2u
+mt76x2_common          20480  1 mt76x2u
+mt76x2u                20480  0 
+mt7921_common          57344  1 mt7921u
+mt7921u                12288  0 
+mt7925_common         106496  1 mt7925u
+mt7925u                12288  0 
+mt792x_lib             32768  5 mt7925u,mt7925_common,mt7921u,mt7921_common,mt792x_usb
+mt792x_usb             16384  2 mt7925u,mt7921u
+rtw88_8723d            36864  1 rtw88_8723du
+rtw88_8723du           12288  0 
+rtw88_8723x            16384  1 rtw88_8723d
+rtw88_8812a            40960  1 rtw88_8812au
+rtw88_8812au           12288  0 
+rtw88_8814a           229376  1 rtw88_8814au
+rtw88_8814au           12288  0 
+rtw88_8821c            86016  1 rtw88_8821cu
+rtw88_8821cu           12288  0 
+rtw88_8822b           217088  1 rtw88_8822bu
+rtw88_8822bu           12288  0 
+rtw88_8822c           458752  1 rtw88_8822cu
+rtw88_8822cu           12288  0 
+rtw88_88xxa            28672  1 rtw88_8812a
+rtw88_core            139264  9 rtw88_8812a,rtw88_8723d,rtw88_88xxa,rtw88_8822c,rtw88_8822b,rtw88_8821c,rtw88_8814a,rtw88_8723x,rtw88_usb
+rtw88_usb              20480  6 rtw88_8812au,rtw88_8723du,rtw88_8822cu,rtw88_8822bu,rtw88_8821cu,rtw88_8814au

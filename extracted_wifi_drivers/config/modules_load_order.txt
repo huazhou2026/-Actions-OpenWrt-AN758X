@@ -1,0 +1,89 @@
+# /etc/modules.d/ WiFi Related Module Load Order
+# Auto-loaded modules for WiFi drivers
+
+# PON/XGS-PON (Airoha)
+airoha-en7572
+airoha-pon-frontend-core
+airoha-xpon
+
+# Atheros AR9271/AR7010 USB
+ath9k_htc
+
+# MediaTek MT76 Family (mt7663u, mt76x2u, mt7921u, mt7925u)
+mt7663u
+mt76x2u
+mt7921u
+mt7925u
+
+# Realtek RTL88xx USB (rtw88 series)
+rtw88_core
+rtw88_8723d
+rtw88_8723du
+rtw88_8723x
+rtw88_8812a
+rtw88_8812au
+rtw88_8814a
+rtw88_8814au
+rtw88_8821c
+rtw88_8821cu
+rtw88_8822b
+rtw88_8822bu
+rtw88_8822c
+rtw88_8822cu
+rtw88_88xxa
+rtw88_usb
+
+---
+# Module Dependency Graph (from lsmod)
+
+# Base Layer
+compat (12288) -> used by: rtw88_8812au, rtw88_8723du, ath9k_htc, rtw88_8822cu, rtw88_8822bu, rtw88_8821cu, rtw88_8814au, mac80211, cfg80211
+
+# 802.11 Stack
+cfg80211 (380928) <- mac80211, ath, mt76, rtw88_core, mt76x2_common, mt76x02_usb, mt76x02_lib, mt7615_common, mt76_connac_lib, mt7925_common, mt7921_common, ath9k_htc, ath9k_common
+mac80211 (720896) <- mt76, mt76_usb, mt76x2u, mt76x02_usb, mt76x02_lib, mt7663u, mt7663_usb_sdio_common, mt7615_common, mt76_connac_lib, mt7925_common, mt7921_common, rtw88_usb, rtw88_core, ath9k_htc, mt792x_lib
+
+# Atheros
+ath9k_hw (348160) <- ath9k_htc, ath9k_common
+ath9k_common (24576) <- ath9k_htc
+ath9k_htc (73728) -> uses: ath9k_hw, ath9k_common, ath, mac80211, cfg80211
+ath (24576) <- ath9k_htc, ath9k_common, ath9k_hw
+
+# MediaTek mt76 Family
+mt76 (90112) <- mt76_usb, mt76_connac_lib, mt76x2u, mt76x2_common, mt76x02_usb, mt76x02_lib, mt7663u, mt7663_usb_sdio_common, mt7615_common, mt7925u, mt7925_common, mt7921u, mt7921_common, mt792x_usb, mt792x_lib
+mt76_connac_lib (53248) <- mt7615_common, mt7663u, mt7663_usb_sdio_common, mt7925u, mt7925_common, mt7921u, mt7921_common, mt792x_lib
+mt76_usb (20480) <- mt7925u, mt7921u, mt792x_usb, mt76x2u, mt76x02_usb, mt7663u
+mt7615_common (90112) <- mt7663u, mt7663_usb_sdio_common
+mt7663_usb_sdio_common (12288) <- mt7663u
+mt7663u (12288) -> uses: mt76, mt76_usb, mt7615_common, mt7663_usb_sdio_common, mac80211
+mt76x2u (20480) -> uses: mt76, mt76_usb, mt76x2_common, mt76x02_usb, mt76x02_lib, mac80211
+mt76x2_common (20480) <- mt76x2u
+mt76x02_lib (53248) <- mt76x2u, mt76x2_common, mt76x02_usb
+mt76x02_usb (16384) <- mt76x2u
+mt7925u (12288) -> uses: mt76, mt76_usb, mt76_connac_lib, mt7925_common, mt792x_usb, mt792x_lib
+mt7925_common (106496) <- mt7925u
+mt7921u (12288) -> uses: mt76, mt76_usb, mt76_connac_lib, mt7921_common, mt792x_usb, mt792x_lib
+mt7921_common (57344) <- mt7921u
+mt792x_lib (32768) <- mt7925u, mt7925_common, mt7921u, mt7921_common, mt792x_usb
+mt792x_usb (16384) <- mt7925u, mt7921u
+
+# Realtek rtw88 Family
+rtw88_core (139264) <- rtw88_8812a, rtw88_8723d, rtw88_88xxa, rtw88_8822c, rtw88_8822b, rtw88_8821c, rtw88_8814a, rtw88_8723x, rtw88_usb
+rtw88_8723d (36864) <- rtw88_8723du
+rtw88_8723du (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_8723x (16384) <- rtw88_8723d
+rtw88_8812a (40960) <- rtw88_8812au, rtw88_88xxa
+rtw88_8812au (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_8814a (229376) <- rtw88_8814au
+rtw88_8814au (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_8821c (86016) <- rtw88_8821cu
+rtw88_8821cu (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_8822b (217088) <- rtw88_8822bu
+rtw88_8822bu (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_8822c (458752) <- rtw88_8822cu
+rtw88_8822cu (12288) -> uses: rtw88_core, rtw88_usb
+rtw88_88xxa (28672) <- rtw88_8812a
+rtw88_usb (20480) <- rtw88_8812au, rtw88_8723du, rtw88_8822cu, rtw88_8822bu, rtw88_8821cu, rtw88_8814au
+
+# Hardware Monitoring
+hwmon (20480) <- mt7925_common, mt7921_common, mt7615_common

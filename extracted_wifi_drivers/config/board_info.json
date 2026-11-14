@@ -1,0 +1,132 @@
+{
+	"model": {
+		"id": "nokia,xg-040g-md-ubi",
+		"name": "Nokia XG-040G-MD (UBI)"
+	},
+	"led": {
+		"lan2": {
+			"name": "lan2",
+			"sysfs": "mt7530-0:0a:green:lan-2",
+			"type": "netdev",
+			"device": "lan2",
+			"mode": "link tx rx"
+		},
+		"lan3": {
+			"name": "lan3",
+			"sysfs": "mt7530-0:0b:green:lan-3",
+			"type": "netdev",
+			"device": "lan3",
+			"mode": "link tx rx"
+		},
+		"lan4": {
+			"name": "lan4",
+			"sysfs": "mt7530-0:0c:green:lan-4",
+			"type": "netdev",
+			"device": "lan4",
+			"mode": "link tx rx"
+		}
+	},
+	"network": {
+		"lan": {
+			"ports": [
+				"lan1",
+				"lan2",
+				"lan3",
+				"lan4"
+			],
+			"protocol": "static"
+		},
+		"wan": {
+			"device": "pon0",
+			"protocol": "dhcp"
+		}
+	},
+	"pon_data": {
+		"bosa": {
+			"type": "ubi",
+			"size": 262144,
+			"parent": "ubi"
+		},
+		"ri": {
+			"type": "ubi",
+			"size": 262144,
+			"parent": "ubi"
+		}
+	},
+	"identity": {
+		"targets": {
+			"ri": {
+				"codec": "nokia-ri-v1",
+				"fields": {
+					"pon_sn": {
+						"kind": "pon-sn",
+						"offset": 26,
+						"size": 12,
+						"encoding": "pon-ascii12",
+						"vssn_offset": 88
+					},
+					"board_mac": {
+						"kind": "mac",
+						"offset": 62,
+						"size": 6,
+						"encoding": "mac-binary6"
+					}
+				}
+			}
+		}
+	},
+	"wlan": {
+		"phy15": {
+			"path": "platform/soc/1fad0000.usb/usb3/3-1/3-1:1.3",
+			"info": {
+				"antenna_rx": 3,
+				"antenna_tx": 3,
+				"bands": {
+					"2G": {
+						"ht": true,
+						"he": true,
+						"max_width": 40,
+						"modes": [
+							"NOHT",
+							"HT20",
+							"HE20",
+							"HT40",
+							"HE40"
+						],
+						"default_channel": 1
+					},
+					"5G": {
+						"ht": true,
+						"vht": true,
+						"he": true,
+						"max_width": 80,
+						"modes": [
+							"NOHT",
+							"HT20",
+							"VHT20",
+							"HE20",
+							"HT40",
+							"VHT40",
+							"HE40",
+							"VHT80",
+							"HE80"
+						],
+						"default_channel": 36
+					},
+					"6G": {
+						"he": true,
+						"max_width": 80,
+						"modes": [
+							"NOHT",
+							"HE20",
+							"HE40",
+							"HE80"
+						]
+					}
+				},
+				"radios": [
+				]
+			}
+		}
+	}
+}

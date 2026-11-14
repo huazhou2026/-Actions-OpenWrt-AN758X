@@ -1,0 +1,89 @@
+FILE MANIFEST - ponwrt WiFi Drivers for Kernel 6.18.55
+Generated: 2026-11-13 13:51:42
+Source Device: 192.168.1.1 (Nokia XG-040G-MD UBI)
+============================================================
+
+[KERNEL MODULES - 32 files]
+  modules/air_en8811h.ko  19752 bytes
+  modules/airoha-en7572.ko  18200 bytes
+  modules/airoha-pon-frontend-core.ko  8904 bytes
+  modules/airoha-xpon.ko  131416 bytes
+  modules/cfg80211.ko  553352 bytes
+  modules/compat.ko  15216 bytes
+  modules/hwmon.ko  29080 bytes
+  modules/mac80211.ko  1020896 bytes
+  modules/mt76.ko  135952 bytes
+  modules/mt76-connac-lib.ko  84304 bytes
+  modules/mt76-usb.ko  26184 bytes
+  modules/mt7921-common.ko  106896 bytes
+  modules/mt7921u.ko  12168 bytes
+  modules/mt7925-common.ko  160192 bytes
+  modules/mt7925u.ko  13112 bytes
+  modules/mt792x-lib.ko  57192 bytes
+  modules/mt792x-usb.ko  14760 bytes
+  modules/rtw88_8812a.ko  42232 bytes
+  modules/rtw88_8812au.ko  7696 bytes
+  modules/rtw88_8814a.ko  239064 bytes
+  modules/rtw88_8814au.ko  5600 bytes
+  modules/rtw88_8821a.ko  34888 bytes
+  modules/rtw88_8821au.ko  6856 bytes
+  modules/rtw88_8821c.ko  85224 bytes
+  modules/rtw88_8821cu.ko  5888 bytes
+  modules/rtw88_8822b.ko  218976 bytes
+  modules/rtw88_8822bu.ko  8088 bytes
+  modules/rtw88_8822c.ko  465552 bytes
+  modules/rtw88_8822cu.ko  5048 bytes
+  modules/rtw88_88xxa.ko  31120 bytes
+  modules/rtw88_core.ko  198192 bytes
+  modules/rtw88_usb.ko  21456 bytes
+  SUBTOTAL: 3783456 bytes (3694.8 KB)
+
+[FIRMWARE FILES - 26 files]
+  firmware/airoha/en7572/A60993.elf.dm  60 bytes
+  firmware/airoha/en7572/A60993.elf.pm  14808 bytes
+  firmware/airoha/en7581_npu_data.bin  3100 bytes
+  firmware/airoha/en7581_npu_rv32.bin  120272 bytes
+  firmware/airoha/EthMD32.dm.bin  16384 bytes
+  firmware/airoha/EthMD32.DSP.bin  131072 bytes
+  firmware/mediatek/mt7916_eeprom.bin  4096 bytes
+  firmware/mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin  137632 bytes
+  firmware/mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin  92192 bytes
+  firmware/mediatek/WIFI_RAM_CODE_MT7922_1.bin  1018692 bytes
+  firmware/mediatek/WIFI_RAM_CODE_MT7961_1.bin  797300 bytes
+  firmware/rtl_nic/rtl8153a-2.fw  1768 bytes
+  firmware/rtl_nic/rtl8153a-3.fw  1440 bytes
+  firmware/rtl_nic/rtl8153a-4.fw  1184 bytes
+  firmware/rtl_nic/rtl8153b-2.fw  1880 bytes
+  firmware/rtl_nic/rtl8153c-1.fw  832 bytes
+  firmware/rtl_nic/rtl8156a-2.fw  4024 bytes
+  firmware/rtl_nic/rtl8156b-2.fw  5776 bytes
+  firmware/rtw88/rtw8812a_fw.bin  27030 bytes
+  firmware/rtw88/rtw8814a_fw.bin  68320 bytes
+  firmware/rtw88/rtw8821a_fw.bin  31898 bytes
+  firmware/rtw88/rtw8821c_fw.bin  139472 bytes
+  firmware/rtw88/rtw8822b_fw.bin  161240 bytes
+  firmware/rtw88/rtw8822c_fw.bin  202600 bytes
+  firmware/rtw88/rtw8822c_wow_fw.bin  145224 bytes
+  SUBTOTAL: 3128296 bytes (3055 KB) - 25 files
+
+[CONFIG DOCUMENTATION - 3 files]
+  config/firmware_list.txt  680 bytes
+  config/module_load_order.txt  567 bytes
+  config/modules_list.txt  504 bytes
+
+[DEPLOYMENT SCRIPT - 1 file]
+  deploy_offline.sh  3935 bytes
+
+[MANIFEST - 1 file]
+  FILE_MANIFEST.txt  (this file)
+
+============================================================
+TOTAL: 62 files, 6917438 bytes (6755.3 KB)
+
+Supported Hardware:
+  - MediaTek MT7921/MT7922/MT7925/MT7961 (mt76/mt792x family)
+  - Realtek RTL8812A/8814A/8821A/8821C/8822B/8822C (rtw88 family)
+  - Airoha EN7572/EN7581/EN8811H (PON/WiFi frontend)
+  - Atheros AR9271/AR7010 compatible (air_en8811h)
+
+Installation: Run deploy_offline.sh as root on target device with kernel 6.18.55

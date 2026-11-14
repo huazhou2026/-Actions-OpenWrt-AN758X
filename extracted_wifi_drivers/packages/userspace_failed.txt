@@ -1,0 +1,16 @@
+wpad-mbedtls-2026.08.07~831364bf-r4
+libmbedtls21-3.6.3-r1
+libblobmsg-json20261103-2026.11.03-r1
+libubus20261028-2026.10.28-r1
+libuci20250120-2025.01.20-r1
+libucode20261009-2026.10.09-r1
+libudebug-2026.10.09-r1
+ucode-2026.10.09-r1
+ucode-mod-digest-2026.10.09-r1
+ucode-mod-nl80211-2026.10.09-r1
+ucode-mod-rtnl-2026.10.09-r1
+ucode-mod-ubus-2026.10.09-r1
+ucode-mod-uci-2026.10.09-r1
+ucode-mod-fs-2026.10.09-r1
+ucode-mod-uloop-2026.10.09-r1
+netifd-2026.11.03-r1

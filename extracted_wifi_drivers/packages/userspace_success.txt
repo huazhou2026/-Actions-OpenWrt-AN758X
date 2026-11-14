@@ -1,0 +1,9 @@
+iw-6.17-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/iw-6.17-r1.apk
+iwinfo-2026.05.26~66bdd1a0-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/iwinfo-2026.05.26~66bdd1a0-r1.apk
+hostapd-common-2026.08.07~831364bf-r4	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/hostapd-common-2026.08.07~831364bf-r4.apk
+hostapd-mbedtls-2026.08.07~831364bf-r4	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/hostapd-mbedtls-2026.08.07~831364bf-r4.apk
+libiwinfo20230701-2026.05.26~66bdd1a0-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/libiwinfo20230701-2026.05.26~66bdd1a0-r1.apk
+libiwinfo-data-2026.05.26~66bdd1a0-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/libiwinfo-data-2026.05.26~66bdd1a0-r1.apk
+libnl-tiny1-2025.12.02~40493a65-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/libnl-tiny1-2025.12.02~40493a65-r1.apk
+wireless-regdb-2026.09.03-r1	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/wireless-regdb-2026.09.03-r1.apk
+wifi-scripts-1.0-r4	https://downloads.immortalwrt.org/snapshots/packages/aarch64_cortex-a53/base/wifi-scripts-1.0-r4.apk

@@ -1,0 +1,41 @@
+﻿# Base dependencies (loaded automatically by kernel)
+cfg80211
+mac80211
+compat
+hwmon
+
+# MediaTek MT76/MT792x family
+mt76
+mt76-usb
+mt76-connac-lib
+mt792x-lib
+mt792x-usb
+mt7921-common
+mt7921u
+mt7925-common
+mt7925u
+
+# Realtek RTW88 family
+rtw88_core
+rtw88_88xxa
+rtw88_usb
+rtw88_8812a
+rtw88_8812au
+rtw88_8814a
+rtw88_8814au
+rtw88_8821a
+rtw88_8821au
+rtw88_8821c
+rtw88_8821cu
+rtw88_8822b
+rtw88_8822bu
+rtw88_8822c
+rtw88_8822cu
+
+# Airoha PON/WiFi
+airoha-pon-frontend-core
+airoha-xpon
+airoha-en7572
+
+# Atheros air_en8811h
+air_en8811h

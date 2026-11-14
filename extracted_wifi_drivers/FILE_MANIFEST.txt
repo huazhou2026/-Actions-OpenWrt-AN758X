@@ -1,0 +1,136 @@
+# ponwrt WiFi 离线驱动包 - 完整文件清单
+# 生成时间: 2026-11-13
+# 适用内核: 6.18.60 aarch64
+# 来源设备: Nokia XG-040G-MD (UBI) / ImmortalWrt
+
+===========================================================
+📁 内核模块 - modules/ (36 个 .ko 文件, ~5.4 MB)
+===========================================================
+# Airoha PON/XGS-PON
+air_en8811h.ko                      # Airoha EN8811H PHY
+airoha-en7572.ko                    # Airoha EN7572 前端
+airoha-pon-frontend-core.ko         # PON 前端核心
+airoha-xpon.ko                      # XGS-PON 核心
+
+# Atheros AR9271/AR7010 USB WiFi
+ath.ko                              # Atheros 共享核心
+ath9k_common.ko                     # AR9003 共享
+ath9k_htc.ko                        # USB 设备驱动 (AR9271/AR7010)
+ath9k_hw.ko                         # 硬件抽象层
+
+# 802.11 核心栈
+cfg80211.ko                         # 配置层
+mac80211.ko                         # MAC 层
+compat.ko                           # 兼容层
+
+# MediaTek MT76 系列 (mt7663u, mt76x2u, mt7921u, mt7925u)
+mt76.ko                             # MT76 核心
+mt76-usb.ko                         # USB 总线支持
+mt76-connac-lib.ko                  # CONNAC 库
+mt7615-common.ko                    # MT7615 共享
+mt7663-usb-sdio-common.ko           # MT7663 USB/SDIO 共享
+mt7663u.ko                          # MT7663 USB
+mt76x02-lib.ko                      # MT76x02 库
+mt76x02-usb.ko                      # MT76x02 USB
+mt76x2-common.ko                    # MT76x2 共享
+mt76x2u.ko                          # MT76x2U (MT7612U/MT7602U)
+mt7921-common.ko                    # MT7921 共享
+mt7921u.ko                          # MT7921U (WiFi 6)
+mt7925-common.ko                    # MT7925 共享
+mt7925u.ko                          # MT7925U (WiFi 6)
+mt792x-lib.ko                       # MT792x 共享库
+mt792x-usb.ko                       # MT792x USB
+
+# Realtek RTL88xx 系列 (rtw88 驱动)
+rtw88_core.ko                       # 核心
+rtw88_usb.ko                        # USB 总线
+rtw88_8723d.ko                      # RTL8723D
+rtw88_8723du.ko                     # RTL8723DU USB
+rtw88_8723x.ko                      # RTL8723X 共享
+rtw88_8812a.ko                      # RTL8812A
+rtw88_8812au.ko                     # RTL8812AU USB
+rtw88_8814a.ko                      # RTL8814A
+rtw88_8814au.ko                     # RTL8814AU USB
+rtw88_8821c.ko                      # RTL8821C
+rtw88_8821cu.ko                     # RTL8821CU USB
+rtw88_8822b.ko                      # RTL8822B
+rtw88_8822bu.ko                     # RTL8822BU USB
+rtw88_8822c.ko                      # RTL8822C
+rtw88_8822cu.ko                     # RTL8822CU USB
+rtw88_88xxa.ko                      # RTL88XXA 共享
+
+===========================================================
+📁 固件文件 - firmware/ (20 个文件, ~2.2 MB)
+===========================================================
+# Airoha
+airoha/EthMD32.DSP.bin
+airoha/EthMD32.dm.bin
+airoha/en7572/A60993.elf.dm
+airoha/en7572/A60993.elf.pm
+airoha/en7581_npu_data.bin
+airoha/en7581_npu_rv32.bin
+
+# Atheros
+ath9k_htc/htc_7010-1.4.0.fw        # AR7010
+ath9k_htc/htc_9271-1.4.0.fw        # AR9271
+
+# MediaTek
+mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin
+mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin
+mediatek/WIFI_RAM_CODE_MT7922_1.bin
+mediatek/WIFI_RAM_CODE_MT7961_1.bin
+mt7662.bin
+mt7662_rom_patch.bin
+
+# Realtek
+rtw88/rtw8723d_fw.bin              # RTL8723D
+rtw88/rtw8812a_fw.bin              # RTL8812A
+rtw88/rtw8814a_fw.bin              # RTL8814A
+rtw88/rtw8821c_fw.bin              # RTL8821C
+rtw88/rtw8822b_fw.bin              # RTL8822B
+rtw88/rtw8822c_fw.bin              # RTL8822C
+rtw88/rtw8822c_wow_fw.bin          # RTL8822C WoWLAN
+
+===========================================================
+📁 配置文档 - config/ (7 个文件)
+===========================================================
+system_info.txt              # 系统/硬件完整信息
+wireless_config.txt          # /etc/config/wireless (当前配置)
+network_config.txt           # /etc/config/network (网络配置)
+board_info.json              # 板级定义 (3x3 MIMO, 2G/5G/6G)
+wifi_packages_manifest.txt   # 完整包名清单 (112 个包含版本)
+modules_load_order.txt       # 模块加载顺序 + 依赖图
+loaded_modules_full.txt      # 完整 lsmod 输出
+
+===========================================================
+📁 用户空间工具包 - packages/ (已下载 9 个 .apk)
+===========================================================
+已成功下载:
+iw-6.17-r1.apk                              # WiFi 配置工具
+iwinfo-2026.05.26~66bdd1a0-r1.apk          # WiFi 信息库
+hostapd-common-2026.08.07~831364bf-r4.apk  # hostapd 通用
+hostapd-mbedtls-2026.08.07~831364bf-r4.apk # hostapd mbedtls
+libiwinfo20230701-2026.05.26~66bdd1a0-r1.apk
+libiwinfo-data-2026.05.26~66bdd1a0-r1.apk
+libnl-tiny1-2025.12.02~40493a65-r1.apk     # netlink 库
+wireless-regdb-2026.09.03-r1.apk           # 频段监管数据库
+wifi-scripts-1.0-r4.apk                    # WiFi 管理脚本
+
+需在目标设备联网后安装 (版本可能因 snapshot 变化):
+wpad-mbedtls, libmbedtls21, libubus20261028, libuci20250120,
+libucode20261009, libudebug, ucode, ucode-mod-*, netifd 等
+
+===========================================================
+📁 部署脚本
+===========================================================
+deploy_offline.sh              # 一键离线部署脚本 (在目标设备运行)
+
+===========================================================
+📁 报告文档
+===========================================================
+EXTRACTION_REPORT.md           # 完整提取报告
+FILE_MANIFEST.txt              # 本文件
+packages/full_package_list.txt # 完整包名列表 (112 个)
+packages/userspace_success.txt # 用户空间下载成功记录
+packages/userspace_failed.txt  # 用户空间下载失败记录
+packages/remaining_failed.txt  # 剩余依赖失败记录
