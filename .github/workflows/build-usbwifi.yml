@@ -126,11 +126,13 @@ jobs:
           echo 'CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=""' >> .config
 
       - name: Customize (diy-part2)
+        env:
+          FW_BUILD_TIME: ${{ env.FW_BUILD_TIME }}
         run: |
           cd $BUILD_ROOT/openwrt
           curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part2.sh -o diy-part2.sh
           chmod +x diy-part2.sh
-          FW_AUTHOR=$FW_AUTHOR TZ=$TZ ./diy-part2.sh
+          FW_AUTHOR=$FW_AUTHOR TZ=$TZ FW_BUILD_TIME="${FW_BUILD_TIME:-$(TZ=$TZ date '+%Y-%m-%d %H:%M')}" ./diy-part2.sh
 
       - name: Inject OpenClash
         run: |
