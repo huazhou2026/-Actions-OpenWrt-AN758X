@@ -40,7 +40,7 @@ env:
   PROFILE: nokia_xg-040g-md-ubi
   TZ: Asia/Shanghai
   UBOOT_REPO: https://github.com/pbs05/uboot-an758x
-  UBOOT_BRANCH: master
+  UBOOT_BRANCH: main
 
 jobs:
   build:
