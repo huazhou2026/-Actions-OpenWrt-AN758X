@@ -68,9 +68,14 @@ retry() {
     return 1
 }
 # git clone：正确处理退出码，日志写文件，失败时全量输出
+# 支持 GITHUB_TOKEN 认证：将 https://github.com/ 替换为 https://${GITHUB_TOKEN}@github.com/
 clone() {
     # clone [branch] [filter]
     local url="$1" dir="$2" br="${3:-}" filter="${4:---depth=1}"
+    # 使用 GITHUB_TOKEN 进行认证克隆（如果可用）
+    if [ -n "${GITHUB_TOKEN:-}" ] && [[ "$url" == https://github.com/* ]]; then
+        url="https://${GITHUB_TOKEN}@github.com/${url#https://github.com/}"
+    fi
     # 目录里含 .git 才算"已克隆"，半成品目录清掉重来
     if [ -d "$dir/.git" ]; then
         log " ↷ 已存在，跳过: $dir"
