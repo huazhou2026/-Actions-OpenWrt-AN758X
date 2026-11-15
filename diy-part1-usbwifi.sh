@@ -123,7 +123,7 @@ for entry in "${PKG_LIST[@]}"; do
         continue
     fi
     # 从 url 提取 owner/repo
-    local repo="${url#https://github.com/}"
+    repo="${url#https://github.com/}"
     ENABLED_COUNT=$((ENABLED_COUNT + 1))
     if ! fetch_tarball "$repo" "$PKG_DIR/$name" "$branch"; then
         FAILED_PKGS+=("$name")
