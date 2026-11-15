@@ -130,7 +130,7 @@ jobs:
           grep -E "CONFIG_TARGET_DEVICE_" .config
           grep -E "CONFIG_TARGET_MULTI_PROFILE" .config
 
-- name: Debug config after diy-part2
+      - name: Debug config after diy-part2
         run: |
           cd $BUILD_ROOT/openwrt
           echo "=== After diy-part2.sh ==="
