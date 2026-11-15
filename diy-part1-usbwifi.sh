@@ -80,11 +80,15 @@ clone() {
     rm -rf "$dir"
     local log_file
     log_file="$(mktemp /tmp/clone-XXXXXX.log)"
-    # 彻底禁用 credential helper：多层防护
-    # 1. -c credential.helper= 覆盖配置
-    # 2. GIT_TERMINAL_PROMPT=0 禁用交互式提示
-    # 3. GIT_ASKPASS= 禁用 askpass
-    # 4. unset SSH_ASKPASS 以防万一
+    # 彻底禁用 credential helper：核弹级防护
+    # 1. 取消全局 credential.helper 配置
+    # 2. -c credential.helper= 覆盖命令级配置
+    # 3. GIT_TERMINAL_PROMPT=0 禁用交互式提示
+    # 4. GIT_ASKPASS= 禁用 askpass
+    # 5. unset SSH_ASKPASS 以防万一
+    # 6. GIT_CONFIG_GLOBAL=/dev/null 忽略全局配置文件
+    git config --global --unset credential.helper 2>/dev/null || true
+    git config --global --unset-all credential.helper 2>/dev/null || true
     local args=(
         git
         -c credential.helper=
@@ -94,7 +98,7 @@ clone() {
     [ -n "$br" ] && args+=(-b "$br")
     args+=("$url" "$dir")
     log " ⤓ $(basename "$url") -> $dir"
-    if ! GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= retry 1 3 "${args[@]}" >"$log_file" 2>&1; then
+    if ! GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= retry 1 3 "${args[@]}" >"$log_file" 2>&1; then
         echo "--- git clone 失败，完整日志 ---" >&2
         cat "$log_file" >&2
         echo "-----------------------------------" >&2
