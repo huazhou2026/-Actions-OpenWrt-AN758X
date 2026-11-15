@@ -1,0 +1,267 @@
+name: Build PonWrt USB WiFi + ttyd
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Source repo'
+        required: true
+        default: 'fork'
+        type: choice
+        options: [fork, pbs05/ponwrt]
+      branch:
+        description: 'Branch'
+        required: true
+        default: 'master'
+        type: choice
+        options: [master, pon]
+      upload_release:
+        description: 'Upload to Release'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      fw_author:
+        description: 'Firmware author suffix'
+        required: false
+        default: 'huazhou2026'
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  BUILD_ROOT: /workdir
+  SOURCE: ${{ github.event.inputs.source || 'fork' }}
+  FW_AUTHOR: ${{ github.event.inputs.fw_author || 'huazhou2026' }}
+  REPO_URL: https://github.com/ztb666ai/ponwrt
+  REPO_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+  SOC: an7581
+  PROFILE: nokia_xg-040g-md-ubi
+  TZ: Asia/Shanghai
+  UBOOT_REPO: https://github.com/pbs05/uboot-an758x
+  UBOOT_BRANCH: main
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup
+        id: resolve
+        run: echo "week=$(date +%Y%W)" >> $GITHUB_OUTPUT
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo docker image prune -af 2>/dev/null || true
+          sudo swapoff -a 2>/dev/null || true
+          sudo fallocate -l 8G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+          sudo apt-get -yqq update && sudo apt-get -yqq install build-essential clang llvm dwarves libssl-dev libelf-dev bc flex bison python3 python3-distutils xz-utils tar unzip zip zstd dos2unix ccache gettext rsync file wget curl git subversion 2>/dev/null || true
+          sudo mkdir -p /workdir && sudo chown $USER:$USER /workdir
+
+      - name: Clone source
+        run: |
+          cd $BUILD_ROOT
+          git clone $REPO_URL -b $REPO_BRANCH --single-branch --depth=1 openwrt
+          ln -sf $BUILD_ROOT/openwrt $GITHUB_WORKSPACE/openwrt
+          cd openwrt && echo "commit: $(git rev-parse --short HEAD)"
+
+      - name: Patch kernel config (AN7581 soft AES)
+        run: |
+          cd $BUILD_ROOT/openwrt
+          KCONF="target/linux/airoha/an7581/config-6.18"
+          for key in CRYPTO_AES CRYPTO_AES_ARM64 CRYPTO_AES_ARM64_BS CRYPTO_AES_ARM64_NEON_BLK CRYPTO_SIMD CRYPTO_CBC CRYPTO_CTR CRYPTO_XTS CRYPTO_GHASH CRYPTO_GCM CRYPTO_HW CRYPTO_DEV_EIP93 CRYPTO_AUTHENC CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN; do
+            sed -i -e "/^CONFIG_${key}=/d" -e "/^# CONFIG_${key} is not set$/d" $KCONF
+          done
+          printf '%s\n' \
+            'CONFIG_CRYPTO_AES=y' \
+            'CONFIG_CRYPTO_AES_ARM64=y' \
+            'CONFIG_CRYPTO_AES_ARM64_BS=y' \
+            'CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y' \
+            'CONFIG_CRYPTO_SIMD=y' \
+            'CONFIG_CRYPTO_CBC=y' \
+            'CONFIG_CRYPTO_CTR=y' \
+            'CONFIG_CRYPTO_XTS=y' \
+            'CONFIG_CRYPTO_GHASH=y' \
+            'CONFIG_CRYPTO_GCM=y' \
+            'CONFIG_CRYPTO_HW=y' \
+            'CONFIG_CRYPTO_DEV_EIP93=m' \
+            'CONFIG_CRYPTO_AUTHENC=y' \
+            'CONFIG_CRYPTO_DEV_EIP93_AES_128_SW_MAX_LEN=512' \
+            'CONFIG_CRYPTO_DEV_EIP93_GENERIC_SW_MAX_LEN=256' \
+            >> $KCONF
+
+      - name: Cache dl
+        if: ${{ env.USE_DL_CACHE == 'true' }}
+        uses: actions/cache@v5
+        with:
+          path: /workdir/openwrt/dl
+          key: ponwrt-dl-${{ env.SOURCE }}-${{ env.REPO_BRANCH }}-${{ steps.resolve.outputs.week }}
+          restore-keys: ponwrt-dl-${{ env.SOURCE }}-${{ env.REPO_BRANCH }}-
+          save-always: true
+
+      - name: Update feeds
+        run: |
+          cd $BUILD_ROOT/openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Pull plugins (diy-part1)
+        run: |
+          cd $BUILD_ROOT/openwrt
+          cp $GITHUB_WORKSPACE/diy-part1-usbwifi.sh .
+          chmod +x diy-part1-usbwifi.sh
+          ./diy-part1-usbwifi.sh
+
+      - name: Load base configs
+        run: |
+          cd $BUILD_ROOT/openwrt
+          [ -f "configs/${SOC}.config" ] && cp "configs/${SOC}.config" .config || : > .config
+          cp $GITHUB_WORKSPACE/configs/nokia_xg-040g-md-ubi-usbwifi-ttyd.config configs/nokia_xg-040g-md-ubi.config
+          cat configs/nokia_xg-040g-md-ubi.config >> .config
+          # Do NOT set device profile here - it will be overwritten by diy-part2/part3
+          echo "=== After Load base configs ==="
+          grep -E "CONFIG_TARGET_DEVICE_" .config || echo "(none - will be set later)"
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config || echo "(none - will be set later)"
+
+      - name: Customize (diy-part2)
+        env:
+          FW_BUILD_TIME: ${{ env.FW_BUILD_TIME }}
+          FW_DESC_SUFFIX: ${{ env.FW_DESC_SUFFIX }}
+        run: |
+          cd $BUILD_ROOT/openwrt
+          curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part2.sh -o diy-part2.sh
+          chmod +x diy-part2.sh
+          FW_AUTHOR=$FW_AUTHOR TZ=$TZ FW_BUILD_TIME="${FW_BUILD_TIME:-$(TZ=$TZ date '+%Y-%m-%d %H:%M')}" FW_DESC_SUFFIX="${FW_DESC_SUFFIX:-· ${FW_AUTHOR} · $(TZ=$TZ date '+%Y-%m-%d %H:%M')}" ./diy-part2.sh
+
+      - name: Inject OpenClash
+        run: |
+          cd $BUILD_ROOT/openwrt
+          for pkg in luci-app-openclash luci-compat ca-bundle curl libopenssl ruby ruby-yaml ruby-json ruby-base64; do
+            sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          done
+
+      - name: Trim translations (diy-part3)
+        run: |
+          cd $BUILD_ROOT/openwrt
+          curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part3.sh -o diy-part3.sh
+          chmod +x diy-part3.sh
+          KEEP="base luci-app-airoha-npu luci-app-openclash luci-app-ttyd" ./diy-part3.sh
+
+      - name: Apply device profile (FINAL - after all config changes)
+        run: |
+          cd $BUILD_ROOT/openwrt
+          # Remove any existing device profile entries (from defconfig runs)
+          sed -i '/CONFIG_TARGET_DEVICE_/d; /^CONFIG_TARGET_MULTI_PROFILE=/d' .config
+          # Set our target device profile
+          echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
+          echo "CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y" >> .config
+          echo "CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=\"\" " >> .config
+          echo "=== Applied device profile ==="
+          grep -E "CONFIG_TARGET_DEVICE_" .config
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config
+
+      - name: Verify device profile configuration
+        run: |
+          cd $BUILD_ROOT/openwrt
+          echo "=== Verifying device profile ==="
+          grep -E "CONFIG_TARGET_DEVICE_.*${PROFILE}" .config || { echo "❌ Profile not found in .config"; exit 1; }
+          grep -E "CONFIG_TARGET_MULTI_PROFILE=y" .config || { echo "❌ MULTI_PROFILE not set"; exit 1; }
+          echo "✅ Device profile verified: ${PROFILE}"
+
+      - name: Install aarch64 cross-compilation toolchain (for U-Boot)
+        run: |
+          sudo apt-get -yqq update && sudo apt-get -yqq install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu 2>/dev/null || true
+          which aarch64-linux-gnu-gcc && echo "✅ aarch64-linux-gnu-gcc installed"
+
+      - name: Fetch and integrate U-Boot (an7581 for Nokia XG-040G-MD)
+        run: |
+          cd $BUILD_ROOT
+          # Clone U-Boot for AN7581
+          git clone $UBOOT_REPO -b $UBOOT_BRANCH --single-branch --depth=1 uboot-an758x
+          cd uboot-an758x
+          echo "U-Boot commit: $(git rev-parse --short HEAD)"
+          
+          # Build U-Boot for an7581 (nokia_xg-040g-md)
+          # Correct defconfig from U-Boot repo: an7581_nokia_xg-040g-md_defconfig
+          make an7581_nokia_xg-040g-md_defconfig
+          make -j$(nproc) CROSS_COMPILE=aarch64-linux-gnu- 2>&1 | tee uboot_build.log
+          
+          # Copy U-Boot binary to openwrt for FIT image generation
+          if [ -f u-boot.bin ]; then
+            mkdir -p $BUILD_ROOT/openwrt/target/linux/airoha/an7581/base-files/
+            cp u-boot.bin $BUILD_ROOT/openwrt/target/linux/airoha/an7581/base-files/u-boot-an7581-nokia_xg-040g-md-ubi.bin
+            echo "✅ U-Boot binary copied for FIT image generation"
+          else
+            echo "❌ U-Boot build failed - u-boot.bin not found"
+            exit 1
+          fi
+
+      - name: Download
+        run: |
+          cd $BUILD_ROOT/openwrt
+          make download -j$(nproc) || true
+
+      - name: Build
+        run: |
+          cd $BUILD_ROOT/openwrt
+          make -j$(nproc) V=s 2>&1 | tee build.log
+
+      - name: Verify build produced correct profile
+        run: |
+          cd $BUILD_ROOT/openwrt
+          echo "=== All generated images ==="
+          find bin/targets -type f \( -name "*.itb" -o -name "*.ubi" -o -name "*.img" \) | xargs -I{} ls -la {}
+          echo ""
+          echo "=== Checking for nokia_xg-040g-md-ubi profile ==="
+          if find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | grep -q .; then
+            echo "✅ nokia_xg-040g-md-ubi firmware found"
+            find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | xargs -I{} ls -la {}
+          else
+            echo "❌ nokia_xg-040g-md-ubi firmware NOT found!"
+            echo "Build log tail:"
+            tail -100 build.log
+            exit 1
+          fi
+
+      - name: Verify FIT image contains rootfs
+        run: |
+          cd $BUILD_ROOT/openwrt
+          for f in bin/targets/**/*nokia_xg-040g-md-ubi*.itb; do
+            if [ -f "$f" ]; then
+              echo "=== Checking $f ==="
+              dumpimage -l "$f" 2>/dev/null || echo "dumpimage not available"
+            fi
+          done
+
+      - name: Collect artifacts (nokia_xg-040g-md-ubi only)
+        if: success()
+        run: |
+          cd $BUILD_ROOT/openwrt
+          mkdir -p $BUILD_ROOT/artifacts
+          find bin/targets -type f \( -name "*nokia_xg-040g-md-ubi*.itb" -o -name "*nokia_xg-040g-md-ubi*.ubi" -o -name "*nokia_xg-040g-md-ubi*.img" \) | xargs -I{} cp {} $BUILD_ROOT/artifacts/
+          find bin/targets -type f -name "*squashfs-sysupgrade.itb" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
+          echo "=== Collected artifacts ==="
+          ls -la $BUILD_ROOT/artifacts/
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponwrt-an7581-nokia_xg-040g-md-ubi-openclash-usbwifi-ttyd
+          path: /workdir/artifacts/**
+          retention-days: 30
+
+      - name: Create Release
+        if: success() && github.event.inputs.upload_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.SOC }}-${{ env.PROFILE }}-ttyd-${{ github.run_number }}
+          name: PonWrt ${{ env.SOC }} ${{ env.PROFILE }} USB WiFi + ttyd #${{ github.run_number }}
+          files: /workdir/artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
