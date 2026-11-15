@@ -152,12 +152,7 @@ jobs:
           chmod +x diy-part3.sh
           KEEP="base luci-app-airoha-npu luci-app-openclash" ./diy-part3.sh
 
-      - name: Final defconfig
-        run: |
-          cd $BUILD_ROOT/openwrt
-          make defconfig
-
-      - name: Verify device profile configuration
+      - name: Verify device profile configuration (pre-build)
         run: |
           cd $BUILD_ROOT/openwrt
           echo "=== Verifying device profile ==="
@@ -204,25 +199,44 @@ jobs:
           cd $BUILD_ROOT/openwrt
           make -j$(nproc) V=s 2>&1 | tee build.log
 
+      - name: Verify build produced correct profile
+        run: |
+          cd $BUILD_ROOT/openwrt
+          echo "=== All generated images ==="
+          find bin/targets -type f \( -name "*.itb" -o -name "*.ubi" -o -name "*.img" \) | xargs -I{} ls -la {}
+          echo ""
+          echo "=== Checking for nokia_xg-040g-md-ubi profile ==="
+          if find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | grep -q .; then
+            echo "✅ nokia_xg-040g-md-ubi firmware found"
+            find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | xargs -I{} ls -la {}
+          else
+            echo "❌ nokia_xg-040g-md-ubi firmware NOT found!"
+            echo "Build log tail:"
+            tail -100 build.log
+            exit 1
+          fi
+
       - name: Verify FIT image contains rootfs
         run: |
           cd $BUILD_ROOT/openwrt
-          # Check what images were generated
-          find bin/targets -name "*.itb" -o -name "*.ubi" -o -name "*.img" | xargs -I{} ls -la {}
-          # Verify FIT image contents
-          for f in bin/targets/**/*.itb; do
+          for f in bin/targets/**/*nokia_xg-040g-md-ubi*.itb; do
             if [ -f "$f" ]; then
               echo "=== Checking $f ==="
               dumpimage -l "$f" 2>/dev/null || echo "dumpimage not available"
             fi
           done
 
-      - name: Collect artifacts
+      - name: Collect artifacts (nokia_xg-040g-md-ubi only)
         if: success()
         run: |
           cd $BUILD_ROOT/openwrt
           mkdir -p $BUILD_ROOT/artifacts
-          find bin/targets -name "*.itb" -o -name "*.ubi" -o -name "*.img" | head -20 | xargs -I{} cp {} $BUILD_ROOT/artifacts/
+          # Only collect nokia_xg-040g-md-ubi firmware files
+          find bin/targets -type f \( -name "*nokia_xg-040g-md-ubi*.itb" -o -name "*nokia_xg-040g-md-ubi*.ubi" -o -name "*nokia_xg-040g-md-ubi*.img" \) | xargs -I{} cp {} $BUILD_ROOT/artifacts/
+          # Also collect sysupgrade itb if named differently
+          find bin/targets -type f -name "*squashfs-sysupgrade.itb" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
+          echo "=== Collected artifacts ==="
+          ls -la $BUILD_ROOT/artifacts/
 
       - name: Upload artifact
         if: success()
