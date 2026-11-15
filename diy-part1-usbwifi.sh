@@ -28,6 +28,11 @@ readonly ADD_OPENLIST=false     # luci-app-openlist2（alist/openlist 挂载）
 readonly ADD_SMARTDNS=false     # luci-app-smartdns
 # ttyd 已在 feeds/luci/applications 中，无需额外克隆，仅在 config 里启用即可
 # ---------------------------------------------------------
+# 新增：外部源插件开关
+# ---------------------------------------------------------
+readonly ADD_ONU_CONFIG=true    # naoki66/OpenWrt_ONU_CONFIG (ONU管理、光模块信息)
+readonly ADD_ISTORE=true        # linkease/luci-app-store (iStore应用商店)
+# ---------------------------------------------------------
 # 插件清单——"开关 + 仓库 + 目录 + 分支"集中在这里
 # 新增插件只需加一行，不再到处复制粘贴
 # ---------------------------------------------------------
@@ -42,6 +47,9 @@ readonly PKG_LIST=(
     "luci-app-openlist2|${ADD_OPENLIST}|https://github.com/sbwml/luci-app-openlist2|main"
     "luci-app-smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/luci-app-smartdns|master"
     "smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/smartdns|master"
+    # 新增：外部源插件
+    "OpenWrt_ONU_CONFIG|${ADD_ONU_CONFIG}|https://github.com/naoki66/OpenWrt_ONU_CONFIG|main"
+    "luci-app-store|${ADD_ISTORE}|https://github.com/linkease/luci-app-store|main"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -118,6 +126,28 @@ if [ "$ADD_PASSWALL" = "true" ] && [ -d "$PKG_DIR/openwrt-passwall/luci-app-pass
     log " ✂ 已剔除 luci-app-passwall2"
 fi
 (( ${#FAILED_PKGS[@]} == 0 )) || die "以下插件克隆失败: ${FAILED_PKGS[*]}"
+
+# 特殊处理：OpenWrt_ONU_CONFIG 仓库包含多个子包，需移动到 package/custom 根目录
+if [ "$ADD_ONU_CONFIG" = "true" ] && [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG" ]; then
+    group "展开 OpenWrt_ONU_CONFIG 子包"
+    for subpkg in airoha-pond airoha-ponctl airoha-pon-debug luci-app-onu luci-app-pon-status; do
+        if [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG/$subpkg" ]; then
+            mv "$PKG_DIR/OpenWrt_ONU_CONFIG/$subpkg" "$PKG_DIR/"
+            log " ✅ 已移动 $subpkg 到 package/custom/"
+        else
+            log " ⚠ 未找到 $subpkg"
+        fi
+    done
+    # 清理空的父目录
+    rmdir "$PKG_DIR/OpenWrt_ONU_CONFIG" 2>/dev/null || true
+    endgroup
+fi
+
+# 特殊处理：passwall 仓库里嵌套了 luci-app-passwall2，需要剔除
+if [ "$ADD_PASSWALL" = "true" ] && [ -d "$PKG_DIR/openwrt-passwall/luci-app-passwall2" ]; then
+    rm -rf "$PKG_DIR/openwrt-passwall/luci-app-passwall2"
+    log " ✂ 已剔除 luci-app-passwall2"
+fi
 group "清理重复嵌套目录"
 # 个别仓库（如 rchen14b/luci-app-airoha-npu）会在根目录 + 同名子目录里各放一份，
 # 会把扫描打断。扫 /Makefile，检查是否同时存在 //Makefile。
@@ -160,10 +190,10 @@ done
 endgroup
 group "必装插件硬校验"
 # config 里已写 =y 的包都必须出现在这里，否则 defconfig 会静默剔除
-CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash)
+CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-onu luci-app-pon-status luci-app-store luci-app-autoreboot luci-app-ttyd)
 # 若以后新增必装包，在这里追加，例如：
 # CRITICAL_PKGS+=(luci-app-passwall luci-app-mosdns)
-# 注意：luci-app-ttyd 在 feeds 中，不在此列
+# 注意：luci-app-ttyd 在 feeds 中，luci-app-onu/pon-status 来自 OpenWrt_ONU_CONFIG，luci-app-store 来自 linkease
 [ -f feeds/luci/luci.mk ] || die "feeds/luci/luci.mk 缺失，LuCI app 无法解析"
 HARD_MISS=()
 for r in "${CRITICAL_PKGS[@]}"; do
