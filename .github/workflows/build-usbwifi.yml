@@ -126,6 +126,16 @@ jobs:
           echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
           echo "CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y" >> .config
           echo "CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=\"\" " >> .config
+          echo "=== After Load configs ==="
+          grep -E "CONFIG_TARGET_DEVICE_" .config
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config
+
+- name: Debug config after diy-part2
+        run: |
+          cd $BUILD_ROOT/openwrt
+          echo "=== After diy-part2.sh ==="
+          grep -E "CONFIG_TARGET_DEVICE_" .config || echo "(none)"
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config || echo "(none)"
 
       - name: Customize (diy-part2)
         env:
@@ -144,6 +154,9 @@ jobs:
             sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
             echo "CONFIG_PACKAGE_${pkg}=y" >> .config
           done
+          echo "=== After Inject OpenClash ==="
+          grep -E "CONFIG_TARGET_DEVICE_" .config || echo "(none)"
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config || echo "(none)"
 
       - name: Trim translations (diy-part3)
         run: |
@@ -156,6 +169,11 @@ jobs:
         run: |
           cd $BUILD_ROOT/openwrt
           echo "=== Verifying device profile ==="
+          echo "--- Full .config TARGET_DEVICE lines ---"
+          grep -E "CONFIG_TARGET_DEVICE_" .config || echo "(none)"
+          echo "--- Full .config MULTI_PROFILE lines ---"
+          grep -E "CONFIG_TARGET_MULTI_PROFILE" .config || echo "(none)"
+          echo "--- Searching for PROFILE: ${PROFILE} ---"
           grep -E "CONFIG_TARGET_DEVICE_.*${PROFILE}" .config || { echo "❌ Profile not found in .config"; exit 1; }
           grep -E "CONFIG_TARGET_MULTI_PROFILE=y" .config || { echo "❌ MULTI_PROFILE not set"; exit 1; }
           echo "✅ Device profile verified: ${PROFILE}"
