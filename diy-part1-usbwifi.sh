@@ -67,51 +67,45 @@ retry() {
     done
     return 1
 }
-# git clone：正确处理退出码，日志写文件，失败时全量输出
-# 彻底禁用 credential helper 避免 GitHub Actions 的 GITHUB_TOKEN 干扰跨仓库克隆
-clone() {
-    # clone [branch] [filter]
-    local url="$1" dir="$2" br="${3:-}" filter="${4:---depth=1}"
-    # 目录里含 .git 才算"已克隆"，半成品目录清掉重来
-    if [ -d "$dir/.git" ]; then
+# 下载并解压 GitHub 仓库 tarball：完全绕过 git credential helper 问题
+# 用法: fetch_tarball "owner/repo" "target_dir" "branch"
+fetch_tarball() {
+    local repo="$1" dir="$2" br="${3:-main}"
+    # 目录已存在且有 Makefile 视为已就绪
+    if [ -d "$dir" ] && [ -f "$dir/Makefile" ]; then
         log " ↷ 已存在，跳过: $dir"
         return 0
     fi
     rm -rf "$dir"
+    mkdir -p "$dir"
     local log_file
-    log_file="$(mktemp /tmp/clone-XXXXXX.log)"
-    # 彻底禁用 credential helper：核弹级防护
-    # 1. 取消全局 credential.helper 配置
-    # 2. -c credential.helper= 覆盖命令级配置
-    # 3. GIT_TERMINAL_PROMPT=0 禁用交互式提示
-    # 4. GIT_ASKPASS= 禁用 askpass
-    # 5. unset SSH_ASKPASS 以防万一
-    # 6. GIT_CONFIG_GLOBAL=/dev/null 忽略全局配置文件
-    git config --global --unset credential.helper 2>/dev/null || true
-    git config --global --unset-all credential.helper 2>/dev/null || true
-    local args=(
-        git
-        -c credential.helper=
-        -c credential.useHttpPath=true
-        clone --progress $filter
-    )
-    [ -n "$br" ] && args+=(-b "$br")
-    args+=("$url" "$dir")
-    log " ⤓ $(basename "$url") -> $dir"
-    if ! GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= retry 1 3 "${args[@]}" >"$log_file" 2>&1; then
-        echo "--- git clone 失败，完整日志 ---" >&2
+    log_file="$(mktemp /tmp/tarball-XXXXXX.log)"
+    local tarball_url="https://github.com/${repo}/archive/refs/heads/${br}.tar.gz"
+    log " ⤓ ${repo}@${br} -> $dir (tarball)"
+    # 下载并解压，--strip-components=1 去掉顶层目录名
+    if ! retry 1 3 curl -fsSL --retry 3 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
+        # 尝试 master 分支
+        tarball_url="https://github.com/${repo}/archive/refs/heads/master.tar.gz"
+        log " ↻ 尝试 master 分支: $tarball_url"
+        if ! retry 1 3 curl -fsSL --retry 3 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
+            echo "--- tarball 下载失败，完整日志 ---" >&2
+            cat "$log_file" >&2
+            echo "-----------------------------------" >&2
+            rm -f "$log_file"
+            return 1
+        fi
+    fi
+    if ! tar -xzf /tmp/${repo//\//_}.tar.gz -C "$dir" --strip-components=1 >"$log_file" 2>&1; then
+        echo "--- 解压失败 ---" >&2
         cat "$log_file" >&2
-        echo "-----------------------------------" >&2
         rm -f "$log_file"
         return 1
     fi
-    rm -f "$log_file"
+    rm -f "$log_file" /tmp/${repo//\//_}.tar.gz
     if [ ! -f "$dir/Makefile" ]; then
         log " ⚠ $dir 无根 Makefile，视为源仓库/子包容器"
     fi
-    local commit
-    commit=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-    log " ✅ $(basename "$dir") @ ${commit}"
+    log " ✅ ${repo}@${br} 解压完成"
 }
 # ================================================================
 # 主流程
@@ -119,7 +113,7 @@ clone() {
 group "拉取可选插件 (diy-part1.sh)"
 mkdir -p "$PKG_DIR"
 endgroup
-group "克隆插件仓库（共 ${#PKG_LIST[@]} 项清单）"
+group "下载插件仓库 tarball（共 ${#PKG_LIST[@]} 项清单）"
 ENABLED_COUNT=0
 FAILED_PKGS=()
 for entry in "${PKG_LIST[@]}"; do
@@ -128,10 +122,12 @@ for entry in "${PKG_LIST[@]}"; do
         log " ⊘ $name 未启用"
         continue
     fi
+    # 从 url 提取 owner/repo
+    local repo="${url#https://github.com/}"
     ENABLED_COUNT=$((ENABLED_COUNT + 1))
-    if ! clone "$url" "$PKG_DIR/$name" "$branch"; then
+    if ! fetch_tarball "$repo" "$PKG_DIR/$name" "$branch"; then
         FAILED_PKGS+=("$name")
-        echo "::error::克隆失败: $name ($url)"
+        echo "::error::下载失败: $name ($url)"
     fi
 done
 endgroup
@@ -229,9 +225,9 @@ group "覆盖 feeds/luci 中的 dae / honk，并将 honk 放入 package/custom"
 rm -rf feeds/luci/applications/luci-app-dae
 rm -rf feeds/luci/applications/luci-app-openclash
 rm -rf feeds/luci/applications/luci-app-honk
-clone https://github.com/QiuSimons/luci-app-dae feeds/luci/applications/luci-app-dae
+fetch_tarball "QiuSimons/luci-app-dae" "feeds/luci/applications/luci-app-dae" "main"
 # honk 是容器仓库，含 honk + luci-app-honk 两个包，必须放到 package/custom 下
-clone https://github.com/QiuSimons/luci-app-honk.git "$PKG_DIR/honk" "" --depth=1
+fetch_tarball "QiuSimons/luci-app-honk" "$PKG_DIR/honk" "main"
 # ------------------------------------------------------------------
 # 预放 honk-core.bin：--if-needed 检测到无 stamp 的产物会直接复用，
 # 跳过 zig/bpf-linker/cargo 工具链校验和源码编译
@@ -275,7 +271,7 @@ if [ -d "$PKG_DIR/honk" ]; then
 fi
 # OpenClash update to new version
 rm -rf feeds/luci/applications/luci-app-openclash
-git clone --depth=1 -b dev https://github.com/vernesong/OpenClash.git feeds/luci/applications/luci-app-openclash
+fetch_tarball "vernesong/OpenClash" "feeds/luci/applications/luci-app-openclash" "dev"
 # ================================================================
 # 输出 GitHub Step Summary，Actions 页面直接看结果
 # ================================================================
