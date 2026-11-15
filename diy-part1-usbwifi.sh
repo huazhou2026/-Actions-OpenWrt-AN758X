@@ -26,7 +26,7 @@ readonly ADD_LUCKY=false        # luci-app-lucky（DDNS + socat）
 readonly ADD_TAILSCALE=false    # luci-app-tailscale
 readonly ADD_OPENLIST=false     # luci-app-openlist2（alist/openlist 挂载）
 readonly ADD_SMARTDNS=false     # luci-app-smartdns
-readonly ADD_TTYD=true          # luci-app-ttyd (Web 终端)
+# ttyd 已在 feeds/luci/applications 中，无需额外克隆，仅在 config 里启用即可
 # ---------------------------------------------------------
 # 插件清单——"开关 + 仓库 + 目录 + 分支"集中在这里
 # 新增插件只需加一行，不再到处复制粘贴
@@ -42,7 +42,6 @@ readonly PKG_LIST=(
     "luci-app-openlist2|${ADD_OPENLIST}|https://github.com/sbwml/luci-app-openlist2|main"
     "luci-app-smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/luci-app-smartdns|master"
     "smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/smartdns|master"
-    "luci-app-ttyd|${ADD_TTYD}|https://github.com/kworfee/luci-app-ttyd|main"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -161,9 +160,10 @@ done
 endgroup
 group "必装插件硬校验"
 # config 里已写 =y 的包都必须出现在这里，否则 defconfig 会静默剔除
-CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-ttyd)
+CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash)
 # 若以后新增必装包，在这里追加，例如：
 # CRITICAL_PKGS+=(luci-app-passwall luci-app-mosdns)
+# 注意：luci-app-ttyd 在 feeds 中，不在此列
 [ -f feeds/luci/luci.mk ] || die "feeds/luci/luci.mk 缺失，LuCI app 无法解析"
 HARD_MISS=()
 for r in "${CRITICAL_PKGS[@]}"; do
