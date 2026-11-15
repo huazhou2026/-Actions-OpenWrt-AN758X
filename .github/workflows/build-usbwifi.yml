@@ -125,7 +125,7 @@ jobs:
           sed -i '/CONFIG_TARGET_DEVICE_/d; /^CONFIG_TARGET_MULTI_PROFILE=/d' .config
           echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
           echo "CONFIG_TARGET_DEVICE_airoha_${SOC}_DEVICE_${PROFILE}=y" >> .config
-          echo 'CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=""' >> .config
+          echo "CONFIG_TARGET_DEVICE_PACKAGES_airoha_${SOC}_DEVICE_${PROFILE}=\"\" " >> .config
 
       - name: Customize (diy-part2)
         env:
@@ -156,6 +156,14 @@ jobs:
         run: |
           cd $BUILD_ROOT/openwrt
           make defconfig
+
+      - name: Verify device profile configuration
+        run: |
+          cd $BUILD_ROOT/openwrt
+          echo "=== Verifying device profile ==="
+          grep -E "CONFIG_TARGET_DEVICE_.*${PROFILE}" .config || { echo "❌ Profile not found in .config"; exit 1; }
+          grep -E "CONFIG_TARGET_MULTI_PROFILE=y" .config || { echo "❌ MULTI_PROFILE not set"; exit 1; }
+          echo "✅ Device profile verified: ${PROFILE}"
 
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |
