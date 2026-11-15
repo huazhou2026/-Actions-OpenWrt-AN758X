@@ -110,8 +110,6 @@ jobs:
           ./scripts/feeds install -a
 
       - name: Pull plugins (diy-part1)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $BUILD_ROOT/openwrt
           cp $GITHUB_WORKSPACE/diy-part1-usbwifi.sh .
