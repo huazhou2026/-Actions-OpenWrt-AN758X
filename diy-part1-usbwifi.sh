@@ -68,7 +68,7 @@ retry() {
     return 1
 }
 # git clone：正确处理退出码，日志写文件，失败时全量输出
-# 禁用 credential helper 避免 GitHub Actions 的 GITHUB_TOKEN 干扰跨仓库克隆
+# 彻底禁用 credential helper 避免 GitHub Actions 的 GITHUB_TOKEN 干扰跨仓库克隆
 clone() {
     # clone [branch] [filter]
     local url="$1" dir="$2" br="${3:-}" filter="${4:---depth=1}"
@@ -80,12 +80,21 @@ clone() {
     rm -rf "$dir"
     local log_file
     log_file="$(mktemp /tmp/clone-XXXXXX.log)"
-    # 禁用 credential helper：防止 GITHUB_TOKEN 被用于其他仓库导致认证失败
-    local args=(git -c credential.helper= clone --progress $filter)
+    # 彻底禁用 credential helper：多层防护
+    # 1. -c credential.helper= 覆盖配置
+    # 2. GIT_TERMINAL_PROMPT=0 禁用交互式提示
+    # 3. GIT_ASKPASS= 禁用 askpass
+    # 4. unset SSH_ASKPASS 以防万一
+    local args=(
+        git
+        -c credential.helper=
+        -c credential.useHttpPath=true
+        clone --progress $filter
+    )
     [ -n "$br" ] && args+=(-b "$br")
     args+=("$url" "$dir")
     log " ⤓ $(basename "$url") -> $dir"
-    if ! retry 1 3 "${args[@]}" >"$log_file" 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 GIT_ASKPASS= SSH_ASKPASS= retry 1 3 "${args[@]}" >"$log_file" 2>&1; then
         echo "--- git clone 失败，完整日志 ---" >&2
         cat "$log_file" >&2
         echo "-----------------------------------" >&2
