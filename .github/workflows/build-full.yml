@@ -176,9 +176,7 @@ jobs:
       - name: Set default hostname to ponwrt
         run: |
           cd $BUILD_ROOT/openwrt
-          # Set default hostname in base-files
-          sed -i 's/CONFIG_DEFAULT_HOSTNAME=.*/CONFIG_DEFAULT_HOSTNAME="ponwrt"/' package/base-files/Makefile 2>/dev/null || true
-          # Also set via config
+          # Set default hostname via config (proper way - takes effect at build time)
           sed -i '/CONFIG_DEFAULT_HOSTNAME/d' .config
           echo 'CONFIG_DEFAULT_HOSTNAME="ponwrt"' >> .config
           echo "=== Hostname set to ponwrt ==="
@@ -202,6 +200,16 @@ jobs:
           EOF
           chmod +x package/base-files/files/etc/uci-defaults/99-ntp-servers
           echo "=== NTP servers configured via uci-defaults ==="
+
+      - name: Expand config (make defconfig) to resolve dependencies
+        run: |
+          cd $BUILD_ROOT/openwrt
+          make defconfig
+          echo "=== Config expanded via make defconfig ==="
+          grep -E "CONFIG_DEFAULT_HOSTNAME" .config || echo "Hostname not in .config"
+          grep -E "CONFIG_PACKAGE_luci-app-store" .config || echo "luci-app-store not in .config"
+          grep -E "CONFIG_PACKAGE_luci-app-onu" .config || echo "luci-app-onu not in .config"
+          grep -E "CONFIG_PACKAGE_luci-app-autoreboot" .config || echo "luci-app-autoreboot not in .config"
 
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |
