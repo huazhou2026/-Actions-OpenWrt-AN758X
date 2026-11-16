@@ -31,25 +31,29 @@ readonly ADD_SMARTDNS=false     # luci-app-smartdns
 # 新增：外部源插件开关
 # ---------------------------------------------------------
 readonly ADD_ONU_CONFIG=true    # naoki66/OpenWrt_ONU_CONFIG (ONU管理、光模块信息)
-readonly ADD_ISTORE=true        # linkease/luci-app-store (iStore应用商店)
+readonly ADD_ISTORE=true        # iStore应用商店 + quickstart
 # ---------------------------------------------------------
-# 插件清单——"开关 + 仓库 + 目录 + 分支"集中在这里
+# 插件清单——"开关 + 仓库 + 目录 + 分支 [+ 子目录]"集中在这里
+# 格式: "name|enabled|url|branch|subdir"  (subdir 可选，用于 monorepo 提取子包)
 # 新增插件只需加一行，不再到处复制粘贴
 # ---------------------------------------------------------
 readonly PKG_LIST=(
-    "luci-app-airoha-npu|${ADD_AIROHA_NPU}|https://github.com/luanmuc/luci-app-airoha-npu|main"
-    "openwrt-passwall-packages|${ADD_PASSWALL}|https://github.com/xiaorouji/openwrt-passwall-packages|main"
-    "openwrt-passwall|${ADD_PASSWALL}|https://github.com/xiaorouji/openwrt-passwall|main"
-    "luci-app-mosdns|${ADD_MOSDNS}|https://github.com/sbwml/luci-app-mosdns|v5"
-    "v2ray-geodata|${ADD_MOSDNS}|https://github.com/sbwml/v2ray-geodata|master"
-    "luci-app-lucky|${ADD_LUCKY}|https://github.com/sirpdboy/luci-app-lucky|main"
-    "luci-app-tailscale|${ADD_TAILSCALE}|https://github.com/asvow/luci-app-tailscale|main"
-    "luci-app-openlist2|${ADD_OPENLIST}|https://github.com/sbwml/luci-app-openlist2|main"
-    "luci-app-smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/luci-app-smartdns|master"
-    "smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/smartdns|master"
+    "luci-app-airoha-npu|${ADD_AIROHA_NPU}|https://github.com/luanmuc/luci-app-airoha-npu|main|"
+    "openwrt-passwall-packages|${ADD_PASSWALL}|https://github.com/xiaorouji/openwrt-passwall-packages|main|"
+    "openwrt-passwall|${ADD_PASSWALL}|https://github.com/xiaorouji/openwrt-passwall|main|"
+    "luci-app-mosdns|${ADD_MOSDNS}|https://github.com/sbwml/luci-app-mosdns|v5|"
+    "v2ray-geodata|${ADD_MOSDNS}|https://github.com/sbwml/v2ray-geodata|master|"
+    "luci-app-lucky|${ADD_LUCKY}|https://github.com/sirpdboy/luci-app-lucky|main|"
+    "luci-app-tailscale|${ADD_TAILSCALE}|https://github.com/asvow/luci-app-tailscale|main|"
+    "luci-app-openlist2|${ADD_OPENLIST}|https://github.com/sbwml/luci-app-openlist2|main|"
+    "luci-app-smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/luci-app-smartdns|master|"
+    "smartdns|${ADD_SMARTDNS}|https://github.com/pymumu/smartdns|master|"
     # 新增：外部源插件
-    "OpenWrt_ONU_CONFIG|${ADD_ONU_CONFIG}|https://github.com/naoki66/OpenWrt_ONU_CONFIG|main"
-    "luci-app-store|${ADD_ISTORE}|https://github.com/linkease/luci-app-store|main"
+    "OpenWrt_ONU_CONFIG|${ADD_ONU_CONFIG}|https://github.com/naoki66/OpenWrt_ONU_CONFIG|main|"
+    # iStore: luci-app-store 在 istoreos/istore/luci/luci-app-store
+    "luci-app-store|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-app-store"
+    # iStore quickstart: 在 linkease/nas-packages-luci/luci/luci-app-quickstart
+    "luci-app-quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages-luci|main|luci/luci-app-quickstart"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -95,15 +99,19 @@ fetch_tarball() {
         log " ⚠ GitHub API 未返回默认分支，使用回退列表"
     fi
     
-    # 构建尝试分支列表：API 结果优先，然后是指定分支，最后是常见分支
+    # 构建尝试分支列表：API 结果优先，然后是指定分支，最后是常见分支 + OpenWrt 版本分支
     local branches=()
     [ -n "$default_branch" ] && branches+=("$default_branch")
-    branches+=("$br" "master" "dev" "v5" "v4" "v3" "mainline" "release" "stable" "latest" "trunk" "openwrt" "lede")
-    # 去重
+    branches+=("$br" "master" "dev" "v5" "v4" "v3" "mainline" "release" "stable" "latest" "trunk" "openwrt" "lede" \
+        "openwrt-24.10" "openwrt-23.05" "openwrt-22.03" "openwrt-21.02" "openwrt-19.07" \
+        "24.10" "23.05" "22.03" "21.02" "19.07")
+    # 去重：使用关联数组（bash 4+），更可靠
     local unique_branches=()
-    local seen=""
+    declare -A seen_branches
     for b in "${branches[@]}"; do
-        [[ " $seen " == *" $b "* ]] || { unique_branches+=("$b"); seen="$seen $b"; }
+        [[ -n "$b" && -z "${seen_branches[$b]:-}" ]] || continue
+        seen_branches[$b]=1
+        unique_branches+=("$b")
     done
     
     local tarball_url=""
@@ -150,7 +158,7 @@ group "下载插件仓库 tarball（共 ${#PKG_LIST[@]} 项清单）"
 ENABLED_COUNT=0
 FAILED_PKGS=()
 for entry in "${PKG_LIST[@]}"; do
-    IFS='|' read -r name enabled url branch <<<"$entry"
+    IFS='|' read -r name enabled url branch subdir <<<"$entry"
     if [ "$enabled" != "true" ]; then
         log " ⊘ $name 未启用"
         continue
@@ -158,9 +166,31 @@ for entry in "${PKG_LIST[@]}"; do
     # 从 url 提取 owner/repo
     repo="${url#https://github.com/}"
     ENABLED_COUNT=$((ENABLED_COUNT + 1))
-    if ! fetch_tarball "$repo" "$PKG_DIR/$name" "$branch"; then
+    
+    # 临时下载目录（monorepo 用完即删）
+    tmp_dir="/tmp/${repo//\//_}_${branch//\//_}"
+    if ! fetch_tarball "$repo" "$tmp_dir" "$branch"; then
         FAILED_PKGS+=("$name")
         echo "::error::下载失败: $name ($url)"
+        continue
+    fi
+    
+    # 处理 monorepo 子目录提取
+    if [ -n "$subdir" ] && [ -d "$tmp_dir/$subdir" ]; then
+        rm -rf "$PKG_DIR/$name"
+        mv "$tmp_dir/$subdir" "$PKG_DIR/$name"
+        log " ✅ 从 monorepo 提取 $subdir -> $PKG_DIR/$name"
+        # 清理临时目录
+        rm -rf "$tmp_dir"
+    elif [ -n "$subdir" ] && [ ! -d "$tmp_dir/$subdir" ]; then
+        log " ❌ 未找到子目录 $subdir"
+        FAILED_PKGS+=("$name")
+        echo "::error::子目录不存在: $name -> $subdir ($url)"
+        rm -rf "$tmp_dir"
+    else
+        # 普通仓库：直接移动到目标目录
+        rm -rf "$PKG_DIR/$name"
+        mv "$tmp_dir" "$PKG_DIR/$name"
     fi
 done
 endgroup
@@ -234,10 +264,10 @@ done
 endgroup
 group "必装插件硬校验"
 # config 里已写 =y 的包都必须出现在这里，否则 defconfig 会静默剔除
-CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-onu luci-app-pon-status luci-app-store luci-app-autoreboot luci-app-ttyd)
+CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-onu luci-app-pon-status luci-app-store luci-app-quickstart luci-app-autoreboot luci-app-ttyd)
 # 若以后新增必装包，在这里追加，例如：
 # CRITICAL_PKGS+=(luci-app-passwall luci-app-mosdns)
-# 注意：luci-app-ttyd 在 feeds 中，luci-app-onu/pon-status 来自 OpenWrt_ONU_CONFIG，luci-app-store 来自 linkease
+# 注意：luci-app-ttyd 在 feeds 中，luci-app-onu/pon-status 来自 OpenWrt_ONU_CONFIG，luci-app-store/quickstart 来自 iStore monorepo
 [ -f feeds/luci/luci.mk ] || die "feeds/luci/luci.mk 缺失，LuCI app 无法解析"
 HARD_MISS=()
 for r in "${CRITICAL_PKGS[@]}"; do
