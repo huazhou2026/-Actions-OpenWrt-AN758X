@@ -1,6 +1,5 @@
 name: Build PonWrt Full Featured
 
-# Updated 2026-11-16: force workflow re-registration
 on:
   workflow_dispatch:
     inputs:
@@ -184,7 +183,7 @@ jobs:
           echo 'CONFIG_DEFAULT_HOSTNAME="ponwrt"' >> .config
           echo "=== Hostname set to ponwrt ==="
 
-      - name: Configure NTP servers
+      - name: Configure NTP servers via uci-defaults
         run: |
           cd $BUILD_ROOT/openwrt
           # Configure NTP client with custom servers via uci defaults
