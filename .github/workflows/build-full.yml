@@ -1,5 +1,6 @@
 name: Build PonWrt Full Featured
 
+# Updated 2026-11-16: force workflow re-registration
 on:
   workflow_dispatch:
     inputs:
