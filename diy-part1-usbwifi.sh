@@ -204,6 +204,14 @@ fi
 # 特殊处理：OpenWrt_ONU_CONFIG 仓库包含多个子包，需移动到 package/custom 根目录
 if [ "$ADD_ONU_CONFIG" = "true" ] && [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG" ]; then
     group "展开 OpenWrt_ONU_CONFIG 子包"
+    # 先移除冲突的包：luci-app-pon 和 luci-app-iptv 与 luci-app-onu 有文件冲突
+    #（注：luci-app-pon/iptv 功能已合并入 luci-app-onu，保留会导致 opkg 安装冲突）
+    for conflict_pkg in luci-app-pon luci-app-iptv; do
+        if [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG/$conflict_pkg" ]; then
+            rm -rf "$PKG_DIR/OpenWrt_ONU_CONFIG/$conflict_pkg"
+            log " ✂ 已移除冲突包: $conflict_pkg"
+        fi
+    done
     for subpkg in airoha-pond airoha-ponctl airoha-pon-debug luci-app-onu luci-app-pon-status; do
         if [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG/$subpkg" ]; then
             mv "$PKG_DIR/OpenWrt_ONU_CONFIG/$subpkg" "$PKG_DIR/"
