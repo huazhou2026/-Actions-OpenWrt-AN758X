@@ -81,18 +81,18 @@ fetch_tarball() {
     local log_file
     log_file="$(mktemp /tmp/tarball-XXXXXX.log)"
     
-    # 智能获取默认分支：优先用 GitHub API，失败则回退到常见分支名列表
+    # 智能获取默认分支：对公开仓库无需认证即可查询（速率限制 60/hr 足够）
+    # GITHUB_TOKEN 仅限当前仓库，不能用于外部仓库 API
     local default_branch=""
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        # 使用 GitHub API 获取默认分支（认证请求，速率限制高）
-        default_branch=$(curl -fsSL -H "Authorization: token ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${repo}" 2>/dev/null | \
-            grep -o '"default_branch"[[:space:]]*:[[:space:]]*"[^"]*"' | \
-            sed 's/.*"default_branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true)
-        if [ -n "$default_branch" ]; then
-            log " 🔍 GitHub API 返回默认分支: ${default_branch}"
-        fi
+    # 先尝试无认证调用（公开仓库适用）
+    default_branch=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${repo}" 2>/dev/null | \
+        grep -o '"default_branch"[[:space:]]*:[[:space:]]*"[^"]*"' | \
+        sed 's/.*"default_branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true)
+    if [ -n "$default_branch" ]; then
+        log " 🔍 GitHub API 返回默认分支: ${default_branch}"
+    else
+        log " ⚠ GitHub API 未返回默认分支，使用回退列表"
     fi
     
     # 构建尝试分支列表：API 结果优先，然后是指定分支，最后是常见分支
