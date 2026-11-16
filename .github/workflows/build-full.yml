@@ -183,6 +183,23 @@ jobs:
           echo 'CONFIG_DEFAULT_HOSTNAME="ponwrt"' >> .config
           echo "=== Hostname set to ponwrt ==="
 
+      - name: Configure NTP servers
+        run: |
+          cd $BUILD_ROOT/openwrt
+          # Configure NTP client with custom servers
+          cat >> package/base-files/files/etc/config/system <<'EOF'
+
+config timeserver 'ntp'
+	list server 'ntp.ntsc.ac.cn'
+	list server 'ntp1.aliyun.com'
+	list server 'cn.pool.ntp.org'
+	list server 'time.cloudflare.com'
+	option enabled '1'
+	option enable_server '0'
+EOF
+          echo "=== NTP servers configured ==="
+          cat package/base-files/files/etc/config/system
+
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |
           sudo apt-get -yqq update && sudo apt-get -yqq install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu 2>/dev/null || true
