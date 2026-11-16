@@ -176,7 +176,9 @@ jobs:
       - name: Set default hostname to ponwrt
         run: |
           cd $BUILD_ROOT/openwrt
-          # Set default hostname via config (proper way - takes effect at build time)
+          # Method 1: Patch base-files Makefile directly (takes precedence)
+          sed -i 's/CONFIG_DEFAULT_HOSTNAME=.*/CONFIG_DEFAULT_HOSTNAME="ponwrt"/' package/base-files/Makefile 2>/dev/null || true
+          # Method 2: Also set in .config for defconfig
           sed -i '/CONFIG_DEFAULT_HOSTNAME/d' .config
           echo 'CONFIG_DEFAULT_HOSTNAME="ponwrt"' >> .config
           echo "=== Hostname set to ponwrt ==="
@@ -208,8 +210,15 @@ jobs:
           echo "=== Config expanded via make defconfig ==="
           grep -E "CONFIG_DEFAULT_HOSTNAME" .config || echo "Hostname not in .config"
           grep -E "CONFIG_PACKAGE_luci-app-store" .config || echo "luci-app-store not in .config"
+          grep -E "CONFIG_PACKAGE_luci-app-quickstart" .config || echo "luci-app-quickstart not in .config"
           grep -E "CONFIG_PACKAGE_luci-app-onu" .config || echo "luci-app-onu not in .config"
           grep -E "CONFIG_PACKAGE_luci-app-autoreboot" .config || echo "luci-app-autoreboot not in .config"
+          # Verify iStore package structure
+          echo "=== Verifying iStore package structure ==="
+          [ -d "package/custom/luci-app-store" ] && echo "✅ luci-app-store dir exists" || echo "❌ luci-app-store dir missing"
+          [ -d "package/custom/luci-app-quickstart" ] && echo "✅ luci-app-quickstart dir exists" || echo "❌ luci-app-quickstart dir missing"
+          [ -f "package/custom/luci-app-store/Makefile" ] && echo "✅ luci-app-store Makefile exists" || echo "❌ luci-app-store Makefile missing"
+          [ -f "package/custom/luci-app-quickstart/Makefile" ] && echo "✅ luci-app-quickstart Makefile exists" || echo "❌ luci-app-quickstart Makefile missing"
 
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |
