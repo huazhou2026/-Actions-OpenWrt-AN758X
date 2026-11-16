@@ -80,21 +80,31 @@ fetch_tarball() {
     mkdir -p "$dir"
     local log_file
     log_file="$(mktemp /tmp/tarball-XXXXXX.log)"
-    local tarball_url="https://github.com/${repo}/archive/refs/heads/${br}.tar.gz"
-    log " ⤓ ${repo}@${br} -> $dir (tarball)"
-    # 下载并解压，--strip-components=1 去掉顶层目录名
-    if ! retry 1 3 curl -fsSL --retry 3 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
-        # 尝试 master 分支
-        tarball_url="https://github.com/${repo}/archive/refs/heads/master.tar.gz"
-        log " ↻ 尝试 master 分支: $tarball_url"
-        if ! retry 1 3 curl -fsSL --retry 3 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
-            echo "--- tarball 下载失败，完整日志 ---" >&2
-            cat "$log_file" >&2
-            echo "-----------------------------------" >&2
-            rm -f "$log_file"
-            return 1
+    
+    # 尝试多个常见分支名
+    local branches=("$br" "master" "dev" "v5" "v4" "v3" "openwrt" "lede")
+    local tarball_url=""
+    local success=0
+    
+    for branch in "${branches[@]}"; do
+        tarball_url="https://github.com/${repo}/archive/refs/heads/${branch}.tar.gz"
+        log " ⤓ ${repo}@${branch} -> $dir (tarball)"
+        if retry 1 2 curl -fsSL --retry 2 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
+            success=1
+            br="$branch"
+            break
         fi
+        log " ↻ 分支 ${branch} 不存在 (404)，尝试下一个..."
+    done
+    
+    if [ "$success" -ne 1 ]; then
+        echo "--- tarball 下载失败，尝试了所有常见分支 ---" >&2
+        cat "$log_file" >&2
+        echo "-----------------------------------" >&2
+        rm -f "$log_file"
+        return 1
     fi
+    
     if ! tar -xzf /tmp/${repo//\//_}.tar.gz -C "$dir" --strip-components=1 >"$log_file" 2>&1; then
         echo "--- 解压失败 ---" >&2
         cat "$log_file" >&2
