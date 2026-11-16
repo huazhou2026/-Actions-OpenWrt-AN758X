@@ -173,15 +173,29 @@ jobs:
           grep -E "CONFIG_TARGET_MULTI_PROFILE=y" .config || { echo "❌ MULTI_PROFILE not set"; exit 1; }
           echo "✅ Device profile verified: ${PROFILE}"
 
-      - name: Set default hostname to ponwrt
+      - name: Set default hostname to ponwrt (via uci-defaults + base-files patch)
         run: |
           cd $BUILD_ROOT/openwrt
-          # Method 1: Patch base-files Makefile directly (takes precedence)
+          # Method 1: Patch base-files Makefile DEFAULT_HOSTNAME variable (takes precedence at build time)
+          # ImmortalWrt base-files uses DEFAULT_HOSTNAME variable, not CONFIG_DEFAULT_HOSTNAME
+          if grep -q "DEFAULT_HOSTNAME" package/base-files/Makefile; then
+            sed -i 's/DEFAULT_HOSTNAME:=.*/DEFAULT_HOSTNAME:=ponwrt/' package/base-files/Makefile
+            echo "✅ Patched DEFAULT_HOSTNAME in base-files/Makefile"
+          else
+            echo "⚠ DEFAULT_HOSTNAME not found in base-files/Makefile, will use uci-defaults"
+          fi
+          # Also try CONFIG_DEFAULT_HOSTNAME pattern
           sed -i 's/CONFIG_DEFAULT_HOSTNAME=.*/CONFIG_DEFAULT_HOSTNAME="ponwrt"/' package/base-files/Makefile 2>/dev/null || true
-          # Method 2: Also set in .config for defconfig
-          sed -i '/CONFIG_DEFAULT_HOSTNAME/d' .config
-          echo 'CONFIG_DEFAULT_HOSTNAME="ponwrt"' >> .config
-          echo "=== Hostname set to ponwrt ==="
+          
+          # Method 2: uci-defaults script (most reliable - runs at first boot)
+          mkdir -p package/base-files/files/etc/uci-defaults
+          cat > package/base-files/files/etc/uci-defaults/99-hostname <<'EOF'
+          #!/bin/sh
+          uci -q set system.@system[0].hostname='ponwrt'
+          uci commit system
+          EOF
+          chmod +x package/base-files/files/etc/uci-defaults/99-hostname
+          echo "=== Hostname set to ponwrt via uci-defaults (runs at first boot) ==="
 
       - name: Configure NTP servers via uci-defaults
         run: |
@@ -219,6 +233,22 @@ jobs:
           [ -d "package/custom/luci-app-quickstart" ] && echo "✅ luci-app-quickstart dir exists" || echo "❌ luci-app-quickstart dir missing"
           [ -f "package/custom/luci-app-store/Makefile" ] && echo "✅ luci-app-store Makefile exists" || echo "❌ luci-app-store Makefile missing"
           [ -f "package/custom/luci-app-quickstart/Makefile" ] && echo "✅ luci-app-quickstart Makefile exists" || echo "❌ luci-app-quickstart Makefile missing"
+          # Check iStore Makefile for menu entry
+          if [ -f "package/custom/luci-app-store/Makefile" ]; then
+            echo "--- luci-app-store Makefile content ---"
+            cat package/custom/luci-app-store/Makefile
+          fi
+          if [ -f "package/custom/luci-app-quickstart/Makefile" ]; then
+            echo "--- luci-app-quickstart Makefile content ---"
+            cat package/custom/luci-app-quickstart/Makefile
+          fi
+          # Force-enable iStore packages in .config if they were dropped by defconfig
+          echo "=== Force-enabling critical packages ==="
+          for pkg in luci-app-store luci-app-quickstart luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd; do
+            sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          done
+          echo "✅ Critical packages force-enabled in .config"
 
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |

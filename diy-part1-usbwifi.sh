@@ -225,6 +225,26 @@ if [ "$ADD_ONU_CONFIG" = "true" ] && [ -d "$PKG_DIR/OpenWrt_ONU_CONFIG" ]; then
     endgroup
 fi
 
+# 特殊处理：iStore 仓库 - 验证菜单入口并修正
+if [ "$ADD_ISTORE" = "true" ]; then
+    group "验证 iStore 包菜单入口"
+    # luci-app-store 可能在 istoreos/istore/luci/luci-app-store
+    if [ -d "$PKG_DIR/luci-app-store" ] && [ -f "$PKG_DIR/luci-app-store/Makefile" ]; then
+        log " ✅ luci-app-store 存在，检查菜单配置..."
+        # 检查是否有 LUCI_TITLE 和 LUCI_DEPENDS
+        grep -q "LUCI_TITLE" "$PKG_DIR/luci-app-store/Makefile" || log " ⚠ luci-app-store 缺少 LUCI_TITLE"
+        grep -q "LUCI_DEPENDS" "$PKG_DIR/luci-app-store/Makefile" || log " ⚠ luci-app-store 缺少 LUCI_DEPENDS"
+        # 显示菜单相关配置
+        grep -E "(LUCI_TITLE|LUCI_DEPENDS|LUCI_MENU)" "$PKG_DIR/luci-app-store/Makefile" || log " ⚠ 未找到菜单配置"
+    fi
+    # luci-app-quickstart 可能在 linkease/nas-packages-luci/luci/luci-app-quickstart
+    if [ -d "$PKG_DIR/luci-app-quickstart" ] && [ -f "$PKG_DIR/luci-app-quickstart/Makefile" ]; then
+        log " ✅ luci-app-quickstart 存在，检查菜单配置..."
+        grep -E "(LUCI_TITLE|LUCI_DEPENDS|LUCI_MENU)" "$PKG_DIR/luci-app-quickstart/Makefile" || log " ⚠ 未找到菜单配置"
+    fi
+    endgroup
+fi
+
 # 特殊处理：passwall 仓库里嵌套了 luci-app-passwall2，需要剔除
 if [ "$ADD_PASSWALL" = "true" ] && [ -d "$PKG_DIR/openwrt-passwall/luci-app-passwall2" ]; then
     rm -rf "$PKG_DIR/openwrt-passwall/luci-app-passwall2"
