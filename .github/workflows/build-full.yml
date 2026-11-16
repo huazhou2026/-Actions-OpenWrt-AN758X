@@ -191,12 +191,12 @@ jobs:
           cat >> package/base-files/files/etc/config/system <<'EOF'
 
 config timeserver 'ntp'
-	list server 'ntp.ntsc.ac.cn'
-	list server 'ntp1.aliyun.com'
-	list server 'cn.pool.ntp.org'
-	list server 'time.cloudflare.com'
-	option enabled '1'
-	option enable_server '0'
+  list server 'ntp.ntsc.ac.cn'
+  list server 'ntp1.aliyun.com'
+  list server 'cn.pool.ntp.org'
+  list server 'time.cloudflare.com'
+  option enabled '1'
+  option enable_server '0'
 EOF
           echo "=== NTP servers configured ==="
           cat package/base-files/files/etc/config/system
