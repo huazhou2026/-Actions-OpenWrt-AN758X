@@ -187,19 +187,22 @@ jobs:
       - name: Configure NTP servers
         run: |
           cd $BUILD_ROOT/openwrt
-          # Configure NTP client with custom servers
-          cat >> package/base-files/files/etc/config/system <<'EOF'
-
-config timeserver 'ntp'
-  list server 'ntp.ntsc.ac.cn'
-  list server 'ntp1.aliyun.com'
-  list server 'cn.pool.ntp.org'
-  list server 'time.cloudflare.com'
-  option enabled '1'
-  option enable_server '0'
+          # Configure NTP client with custom servers via uci defaults
+          mkdir -p package/base-files/files/etc/uci-defaults
+          cat > package/base-files/files/etc/uci-defaults/99-ntp-servers <<'EOF'
+#!/bin/sh
+uci -q delete system.ntp
+uci set system.ntp='timeserver'
+uci add_list system.ntp.server='ntp.ntsc.ac.cn'
+uci add_list system.ntp.server='ntp1.aliyun.com'
+uci add_list system.ntp.server='cn.pool.ntp.org'
+uci add_list system.ntp.server='time.cloudflare.com'
+uci set system.ntp.enabled='1'
+uci set system.ntp.enable_server='0'
+uci commit system
 EOF
-          echo "=== NTP servers configured ==="
-          cat package/base-files/files/etc/config/system
+          chmod +x package/base-files/files/etc/uci-defaults/99-ntp-servers
+          echo "=== NTP servers configured via uci-defaults ==="
 
       - name: Install aarch64 cross-compilation toolchain (for U-Boot)
         run: |
