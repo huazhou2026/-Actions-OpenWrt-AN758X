@@ -81,12 +81,35 @@ fetch_tarball() {
     local log_file
     log_file="$(mktemp /tmp/tarball-XXXXXX.log)"
     
-    # 尝试多个常见分支名
-    local branches=("$br" "master" "dev" "v5" "v4" "v3" "openwrt" "lede")
+    # 智能获取默认分支：优先用 GitHub API，失败则回退到常见分支名列表
+    local default_branch=""
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        # 使用 GitHub API 获取默认分支（认证请求，速率限制高）
+        default_branch=$(curl -fsSL -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${repo}" 2>/dev/null | \
+            grep -o '"default_branch"[[:space:]]*:[[:space:]]*"[^"]*"' | \
+            sed 's/.*"default_branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true)
+        if [ -n "$default_branch" ]; then
+            log " 🔍 GitHub API 返回默认分支: ${default_branch}"
+        fi
+    fi
+    
+    # 构建尝试分支列表：API 结果优先，然后是指定分支，最后是常见分支
+    local branches=()
+    [ -n "$default_branch" ] && branches+=("$default_branch")
+    branches+=("$br" "master" "dev" "v5" "v4" "v3" "mainline" "release" "stable" "latest" "trunk" "openwrt" "lede")
+    # 去重
+    local unique_branches=()
+    local seen=""
+    for b in "${branches[@]}"; do
+        [[ " $seen " == *" $b "* ]] || { unique_branches+=("$b"); seen="$seen $b"; }
+    done
+    
     local tarball_url=""
     local success=0
     
-    for branch in "${branches[@]}"; do
+    for branch in "${unique_branches[@]}"; do
         tarball_url="https://github.com/${repo}/archive/refs/heads/${branch}.tar.gz"
         log " ⤓ ${repo}@${branch} -> $dir (tarball)"
         if retry 1 2 curl -fsSL --retry 2 -o /tmp/${repo//\//_}.tar.gz "$tarball_url" >"$log_file" 2>&1; then
@@ -98,7 +121,7 @@ fetch_tarball() {
     done
     
     if [ "$success" -ne 1 ]; then
-        echo "--- tarball 下载失败，尝试了所有常见分支 ---" >&2
+        echo "--- tarball 下载失败，尝试了所有分支 ---" >&2
         cat "$log_file" >&2
         echo "-----------------------------------" >&2
         rm -f "$log_file"
