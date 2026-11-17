@@ -58,6 +58,10 @@ readonly PKG_LIST=(
     "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages|main|network/services/quickstart"
     # iStore libtaskd: 在 istoreos/istore/luci/luci-lib-taskd
     "luci-lib-taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-taskd"
+    # iStore libxterm: 在 istoreos/istore/luci/luci-lib-xterm
+    "luci-lib-xterm|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-xterm"
+    # iStore taskd: 在 istoreos/istore/taskd
+    "taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|taskd"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -257,9 +261,8 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " 🔧 修正 luci-app-store 依赖..."
         # libuci-lua -> libuci (ImmortalWrt 中 libuci 已包含 lua 绑定)
         sed -i 's/libuci-lua/libuci/g' "$PKG_DIR/luci-app-store/Makefile"
-        # luci-lib-taskd -> 已单独拉取，保留依赖名
-        # tar -> 标准包名即为 tar
-        sed -i 's/\<tar\>/tar/g' "$PKG_DIR/luci-app-store/Makefile"
+        # tar -> 标准包名即为 tar (ImmortalWrt feeds 中有 tar 包)
+        # 确保 tar 依赖正确
         log " ✅ luci-app-store 依赖已修正"
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-store/Makefile" | head -5
     fi
@@ -268,10 +271,42 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " 🔧 检查 luci-app-quickstart 依赖..."
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-quickstart/Makefile" | head -5
     fi
-    # luci-lib-taskd: 确保可用
+    # luci-lib-taskd: 修正依赖 (luci-lib-xterm, taskd 已单独拉取)
     if [ -f "$PKG_DIR/luci-lib-taskd/Makefile" ]; then
-        log " 🔧 检查 luci-lib-taskd..."
+        log " 🔧 修正 luci-lib-taskd 依赖..."
+        # 保留 luci-lib-xterm 和 taskd 依赖，因为我们已经单独拉取了这两个包
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-lib-taskd/Makefile" | head -5
+    fi
+    # luci-lib-xterm: 检查
+    if [ -f "$PKG_DIR/luci-lib-xterm/Makefile" ]; then
+        log " 🔧 检查 luci-lib-xterm..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-lib-xterm/Makefile" | head -5
+    fi
+    # taskd: 检查
+    if [ -f "$PKG_DIR/taskd/Makefile" ]; then
+        log " 🔧 检查 taskd..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/taskd/Makefile" | head -5
+    fi
+    # quickstart backend: 修正依赖 (移除 ImmortalWrt 中不存在的包)
+    if [ -f "$PKG_DIR/quickstart/Makefile" ]; then
+        log " 🔧 修正 quickstart backend 依赖..."
+        # 这些包在 ImmortalWrt feeds 中不存在，需要移除或替换
+        # mdadm -> 可能在 feeds/packages/admin/mdadm
+        # parted -> 可能在 feeds/packages/utils/parted
+        # shadow-useradd/shadow-utils -> 使用 shadow 包
+        # smartd/smartmontools -> 可能在 feeds/packages/admin/smartmontools
+        # 这里先显示原始依赖
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/quickstart/Makefile" | head -10
+        # 尝试替换为 ImmortalWrt 中可用的包名
+        sed -i 's/\bmdadm\b/mdadm/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bparted\b/parted/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bshadow-useradd\b/shadow-useradd/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bshadow-utils\b/shadow-utils/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bsmartd\b/smartmontools/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bsmartmontools\b/smartmontools/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bsmartmontools-drivedb\b/smartmontools-drivedb/g' "$PKG_DIR/quickstart/Makefile"
+        log " ✅ quickstart 依赖已尝试修正"
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/quickstart/Makefile" | head -10
     fi
     endgroup
 fi

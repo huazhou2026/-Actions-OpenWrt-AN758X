@@ -233,10 +233,14 @@ jobs:
           [ -d "package/custom/luci-app-quickstart" ] && echo "✅ luci-app-quickstart dir exists" || echo "❌ luci-app-quickstart dir missing"
           [ -d "package/custom/quickstart" ] && echo "✅ quickstart backend dir exists" || echo "❌ quickstart backend dir missing"
           [ -d "package/custom/luci-lib-taskd" ] && echo "✅ luci-lib-taskd dir exists" || echo "❌ luci-lib-taskd dir missing"
+          [ -d "package/custom/luci-lib-xterm" ] && echo "✅ luci-lib-xterm dir exists" || echo "❌ luci-lib-xterm dir missing"
+          [ -d "package/custom/taskd" ] && echo "✅ taskd dir exists" || echo "❌ taskd dir missing"
           [ -f "package/custom/luci-app-store/Makefile" ] && echo "✅ luci-app-store Makefile exists" || echo "❌ luci-app-store Makefile missing"
           [ -f "package/custom/luci-app-quickstart/Makefile" ] && echo "✅ luci-app-quickstart Makefile exists" || echo "❌ luci-app-quickstart Makefile missing"
           [ -f "package/custom/quickstart/Makefile" ] && echo "✅ quickstart Makefile exists" || echo "❌ quickstart Makefile missing"
           [ -f "package/custom/luci-lib-taskd/Makefile" ] && echo "✅ luci-lib-taskd Makefile exists" || echo "❌ luci-lib-taskd Makefile missing"
+          [ -f "package/custom/luci-lib-xterm/Makefile" ] && echo "✅ luci-lib-xterm Makefile exists" || echo "❌ luci-lib-xterm Makefile missing"
+          [ -f "package/custom/taskd/Makefile" ] && echo "✅ taskd Makefile exists" || echo "❌ taskd Makefile missing"
           # Check iStore Makefile for menu entry
           if [ -f "package/custom/luci-app-store/Makefile" ]; then
             echo "--- luci-app-store Makefile content ---"
@@ -256,7 +260,7 @@ jobs:
           fi
           # Force-enable iStore packages in .config if they were dropped by defconfig
           echo "=== Force-enabling critical packages ==="
-          for pkg in luci-app-store luci-app-quickstart quickstart luci-lib-taskd luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd; do
+          for pkg in luci-app-store luci-app-quickstart quickstart luci-lib-taskd luci-lib-xterm taskd luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd; do
             sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
             echo "CONFIG_PACKAGE_${pkg}=y" >> .config
           done
