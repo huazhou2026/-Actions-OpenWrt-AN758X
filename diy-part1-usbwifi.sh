@@ -269,8 +269,8 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " 🔧 修正 luci-app-store 依赖..."
         # libuci-lua -> libuci (ImmortalWrt 中 libuci 已包含 lua 绑定)
         sed -i 's/libuci-lua/libuci/g' "$PKG_DIR/luci-app-store/Makefile"
-        # tar -> 标准包名即为 tar (ImmortalWrt feeds 中有 tar 包)
-        # 确保 tar 依赖正确
+        # tar -> 在 ImmortalWrt feeds/packages/utils/tar 中可用
+        sed -i 's/\btar\b/tar/g' "$PKG_DIR/luci-app-store/Makefile"
         log " ✅ luci-app-store 依赖已修正"
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-store/Makefile" | head -5
     fi
@@ -295,10 +295,19 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " 🔧 检查 luci-app-istorex..."
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-istorex/Makefile" | head -5
     fi
-    # taskd: 检查
+    # taskd: 修正依赖 (coreutils, coreutils-stty, script-utils)
     if [ -f "$PKG_DIR/taskd/Makefile" ]; then
-        log " 🔧 检查 taskd..."
-        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/taskd/Makefile" | head -5
+        log " 🔧 修正 taskd 依赖..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/taskd/Makefile" | head -10
+        # coreutils 和 coreutils-stty 在 feeds/packages/utils/coreutils 中
+        # script-utils 可能不存在，尝试移除或替换
+        sed -i 's/\bcoreutils-stty\b/coreutils/g' "$PKG_DIR/taskd/Makefile"
+        sed -i 's/\bscript-utils\b//g' "$PKG_DIR/taskd/Makefile"
+        # 移除多余空格
+        sed -i 's/  \+/ /g' "$PKG_DIR/taskd/Makefile"
+        sed -i 's/DEPENDS:= /DEPENDS:=/g' "$PKG_DIR/taskd/Makefile"
+        log " ✅ taskd 依赖已修正"
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/taskd/Makefile" | head -10
     fi
     # quickstart backend: 修正依赖 (适配 ImmortalWrt feeds)
     if [ -f "$PKG_DIR/quickstart/Makefile" ]; then

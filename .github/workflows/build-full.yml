@@ -261,13 +261,17 @@ jobs:
             cat package/custom/quickstart/Makefile
           fi
           if [ -f "package/custom/luci-lib-taskd/Makefile" ]; then
-          if [ -f "package/custom/luci-lib-taskd/Makefile" ]; then
             echo "--- luci-lib-taskd Makefile content ---"
             cat package/custom/luci-lib-taskd/Makefile
           fi
           # Force-enable iStore packages in .config if they were dropped by defconfig
           echo "=== Force-enabling critical packages ==="
           for pkg in luci-app-store luci-app-quickstart luci-app-istorex luci-lib-taskd luci-lib-xterm taskd quickstart luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd luci-app-openclash luci-compat; do
+            sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          done
+          # Force-enable dependency packages (coreutils for taskd, tar for luci-app-store)
+          for pkg in coreutils tar; do
             sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
             echo "CONFIG_PACKAGE_${pkg}=y" >> .config
           done
