@@ -32,6 +32,7 @@ readonly ADD_SMARTDNS=false     # luci-app-smartdns
 # ---------------------------------------------------------
 readonly ADD_ONU_CONFIG=true    # naoki66/OpenWrt_ONU_CONFIG (ONU管理、光模块信息)
 readonly ADD_ISTORE=true        # iStore应用商店 + quickstart
+readonly ADD_ISTOREX=true       # iStoreX 首页/应用管理面板
 # ---------------------------------------------------------
 # 插件清单——"开关 + 仓库 + 目录 + 分支 [+ 子目录]"集中在这里
 # 格式: "name|enabled|url|branch|subdir"  (subdir 可选，用于 monorepo 提取子包)
@@ -54,6 +55,8 @@ readonly PKG_LIST=(
     "luci-app-store|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-app-store"
     # iStore quickstart: 在 linkease/nas-packages-luci/luci/luci-app-quickstart
     "luci-app-quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages-luci|main|luci/luci-app-quickstart"
+    # iStoreX 首页: 在 linkease/nas-packages-luci/luci/luci-app-istorex
+    "luci-app-istorex|${ADD_ISTOREX}|https://github.com/linkease/nas-packages-luci|main|luci/luci-app-istorex"
     # iStore libtaskd: 在 istoreos/istore/luci/luci-lib-taskd
     "luci-lib-taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-taskd"
     # iStore libxterm: 在 istoreos/istore/luci/luci-lib-xterm
@@ -250,6 +253,11 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " ✅ luci-app-quickstart 存在，检查菜单配置..."
         grep -E "(LUCI_TITLE|LUCI_DEPENDS|LUCI_MENU)" "$PKG_DIR/luci-app-quickstart/Makefile" || log " ⚠ 未找到菜单配置"
     fi
+    # luci-app-istorex 可能在 linkease/nas-packages-luci/luci/luci-app-istorex
+    if [ -d "$PKG_DIR/luci-app-istorex" ] && [ -f "$PKG_DIR/luci-app-istorex/Makefile" ]; then
+        log " ✅ luci-app-istorex 存在，检查菜单配置..."
+        grep -E "(LUCI_TITLE|LUCI_DEPENDS|LUCI_MENU)" "$PKG_DIR/luci-app-istorex/Makefile" || log " ⚠ 未找到菜单配置"
+    fi
     endgroup
 fi
 
@@ -281,6 +289,11 @@ if [ "$ADD_ISTORE" = "true" ]; then
     if [ -f "$PKG_DIR/luci-lib-xterm/Makefile" ]; then
         log " 🔧 检查 luci-lib-xterm..."
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-lib-xterm/Makefile" | head -5
+    fi
+    # luci-app-istorex: 检查
+    if [ -f "$PKG_DIR/luci-app-istorex/Makefile" ]; then
+        log " 🔧 检查 luci-app-istorex..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-istorex/Makefile" | head -5
     fi
     # taskd: 检查
     if [ -f "$PKG_DIR/taskd/Makefile" ]; then
@@ -358,7 +371,7 @@ done
 endgroup
 group "必装插件硬校验"
 # config 里已写 =y 的包都必须出现在这里，否则 defconfig 会静默剔除
-CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-onu luci-app-pon-status luci-app-store luci-app-quickstart luci-app-autoreboot luci-app-ttyd)
+CRITICAL_PKGS=(luci-app-airoha-npu luci-app-openclash luci-app-onu luci-app-pon-status luci-app-store luci-app-quickstart luci-app-istorex luci-app-autoreboot luci-app-ttyd)
 # 若以后新增必装包，在这里追加，例如：
 # CRITICAL_PKGS+=(luci-app-passwall luci-app-mosdns)
 # 注意：luci-app-ttyd 在 feeds 中，luci-app-onu/pon-status 来自 OpenWrt_ONU_CONFIG，luci-app-store/quickstart 来自 iStore monorepo

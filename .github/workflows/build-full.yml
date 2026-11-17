@@ -150,7 +150,7 @@ jobs:
           cd $BUILD_ROOT/openwrt
           curl -sL https://raw.githubusercontent.com/ztb666ai/Actions-OpenWrt-AN758X/master/diy-part3.sh -o diy-part3.sh
           chmod +x diy-part3.sh
-          KEEP="base luci-app-airoha-npu luci-app-openclash luci-app-ttyd luci-app-onu luci-app-pon-status luci-app-store luci-app-autoreboot" ./diy-part3.sh
+          KEEP="base luci-app-airoha-npu luci-app-openclash luci-app-ttyd luci-app-onu luci-app-pon-status luci-app-store luci-app-quickstart luci-app-istorex luci-app-autoreboot" ./diy-part3.sh
 
       - name: Apply device profile (FINAL - after all config changes)
         run: |
@@ -231,11 +231,13 @@ jobs:
           echo "=== Verifying iStore package structure ==="
           [ -d "package/custom/luci-app-store" ] && echo "✅ luci-app-store dir exists" || echo "❌ luci-app-store dir missing"
           [ -d "package/custom/luci-app-quickstart" ] && echo "✅ luci-app-quickstart dir exists" || echo "❌ luci-app-quickstart dir missing"
+          [ -d "package/custom/luci-app-istorex" ] && echo "✅ luci-app-istorex dir exists" || echo "❌ luci-app-istorex dir missing"
           [ -d "package/custom/luci-lib-taskd" ] && echo "✅ luci-lib-taskd dir exists" || echo "❌ luci-lib-taskd dir missing"
           [ -d "package/custom/luci-lib-xterm" ] && echo "✅ luci-lib-xterm dir exists" || echo "❌ luci-lib-xterm dir missing"
           [ -d "package/custom/taskd" ] && echo "✅ taskd dir exists" || echo "❌ taskd dir missing"
           [ -f "package/custom/luci-app-store/Makefile" ] && echo "✅ luci-app-store Makefile exists" || echo "❌ luci-app-store Makefile missing"
           [ -f "package/custom/luci-app-quickstart/Makefile" ] && echo "✅ luci-app-quickstart Makefile exists" || echo "❌ luci-app-quickstart Makefile missing"
+          [ -f "package/custom/luci-app-istorex/Makefile" ] && echo "✅ luci-app-istorex Makefile exists" || echo "❌ luci-app-istorex Makefile missing"
           [ -f "package/custom/luci-lib-taskd/Makefile" ] && echo "✅ luci-lib-taskd Makefile exists" || echo "❌ luci-lib-taskd Makefile missing"
           [ -f "package/custom/luci-lib-xterm/Makefile" ] && echo "✅ luci-lib-xterm Makefile exists" || echo "❌ luci-lib-xterm Makefile missing"
           [ -f "package/custom/taskd/Makefile" ] && echo "✅ taskd Makefile exists" || echo "❌ taskd Makefile missing"
@@ -248,6 +250,10 @@ jobs:
             echo "--- luci-app-quickstart Makefile content ---"
             cat package/custom/luci-app-quickstart/Makefile
           fi
+          if [ -f "package/custom/luci-app-istorex/Makefile" ]; then
+            echo "--- luci-app-istorex Makefile content ---"
+            cat package/custom/luci-app-istorex/Makefile
+          fi
           if [ -f "package/custom/quickstart/Makefile" ]; then
             echo "--- quickstart Makefile content ---"
             cat package/custom/quickstart/Makefile
@@ -258,7 +264,12 @@ jobs:
           fi
           # Force-enable iStore packages in .config if they were dropped by defconfig
           echo "=== Force-enabling critical packages ==="
-          for pkg in luci-app-store luci-app-quickstart luci-lib-taskd luci-lib-xterm taskd luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd; do
+          for pkg in luci-app-store luci-app-quickstart luci-app-istorex luci-lib-taskd luci-lib-xterm taskd luci-app-onu luci-app-pon-status luci-app-autoreboot luci-app-airoha-npu luci-app-ttyd luci-app-openclash luci-compat; do
+            sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
+            echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          done
+          # Force-enable additional USB WiFi drivers
+          for pkg in kmod-rtl8723bu kmod-rtl8192eu; do
             sed -i "/^CONFIG_PACKAGE_${pkg}=/d; /^# CONFIG_PACKAGE_${pkg} is not set/d" .config
             echo "CONFIG_PACKAGE_${pkg}=y" >> .config
           done
