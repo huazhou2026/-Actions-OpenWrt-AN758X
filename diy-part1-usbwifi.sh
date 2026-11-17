@@ -60,8 +60,8 @@ readonly PKG_LIST=(
     "luci-lib-taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-taskd"
     # iStore libxterm: 在 istoreos/istore/luci/luci-lib-xterm
     "luci-lib-xterm|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-xterm"
-    # iStore taskd: 在 istoreos/istore/taskd
-    "taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|taskd"
+    # iStore taskd: 在 istoreos/istore/luci/taskd
+    "taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/taskd"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
