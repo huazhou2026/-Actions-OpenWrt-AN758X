@@ -54,6 +54,10 @@ readonly PKG_LIST=(
     "luci-app-store|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-app-store"
     # iStore quickstart: 在 linkease/nas-packages-luci/luci/luci-app-quickstart
     "luci-app-quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages-luci|main|luci/luci-app-quickstart"
+    # iStore quickstart backend: 在 linkease/nas-packages-luci/packages/quickstart
+    "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages-luci|main|packages/quickstart"
+    # iStore libtaskd: 在 istoreos/istore/luci/luci-lib-taskd
+    "luci-lib-taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-taskd"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -241,6 +245,33 @@ if [ "$ADD_ISTORE" = "true" ]; then
     if [ -d "$PKG_DIR/luci-app-quickstart" ] && [ -f "$PKG_DIR/luci-app-quickstart/Makefile" ]; then
         log " ✅ luci-app-quickstart 存在，检查菜单配置..."
         grep -E "(LUCI_TITLE|LUCI_DEPENDS|LUCI_MENU)" "$PKG_DIR/luci-app-quickstart/Makefile" || log " ⚠ 未找到菜单配置"
+    fi
+    endgroup
+fi
+
+# 特殊处理：iStore 依赖修正 - 适配 ImmortalWrt/ponwrt feeds
+if [ "$ADD_ISTORE" = "true" ]; then
+    group "修正 iStore 包依赖 (适配 ImmortalWrt feeds)"
+    # luci-app-store: 替换不存在的依赖
+    if [ -f "$PKG_DIR/luci-app-store/Makefile" ]; then
+        log " 🔧 修正 luci-app-store 依赖..."
+        # libuci-lua -> libuci (ImmortalWrt 中 libuci 已包含 lua 绑定)
+        sed -i 's/libuci-lua/libuci/g' "$PKG_DIR/luci-app-store/Makefile"
+        # luci-lib-taskd -> 已单独拉取，保留依赖名
+        # tar -> 标准包名即为 tar
+        sed -i 's/\<tar\>/tar/g' "$PKG_DIR/luci-app-store/Makefile"
+        log " ✅ luci-app-store 依赖已修正"
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-store/Makefile" | head -5
+    fi
+    # luci-app-quickstart: 确保依赖 quickstart (后端已单独拉取)
+    if [ -f "$PKG_DIR/luci-app-quickstart/Makefile" ]; then
+        log " 🔧 检查 luci-app-quickstart 依赖..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-app-quickstart/Makefile" | head -5
+    fi
+    # luci-lib-taskd: 确保可用
+    if [ -f "$PKG_DIR/luci-lib-taskd/Makefile" ]; then
+        log " 🔧 检查 luci-lib-taskd..."
+        grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/luci-lib-taskd/Makefile" | head -5
     fi
     endgroup
 fi
