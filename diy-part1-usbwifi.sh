@@ -63,8 +63,8 @@ readonly PKG_LIST=(
     "luci-lib-xterm|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-xterm"
     # iStore taskd: 在 istoreos/istore/luci/taskd
     "taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/taskd"
-    # quickstart backend: 禁用，依赖太多 ImmortalWrt 中不存在的包
-    # "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages|main|network/services/quickstart"
+    # quickstart backend: 在 linkease/nas-packages/network/services/quickstart
+    "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages|main|network/services/quickstart"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
@@ -300,25 +300,26 @@ if [ "$ADD_ISTORE" = "true" ]; then
         log " 🔧 检查 taskd..."
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/taskd/Makefile" | head -5
     fi
-    # quickstart backend: 修正依赖 (移除 ImmortalWrt 中不存在的包)
+    # quickstart backend: 修正依赖 (适配 ImmortalWrt feeds)
     if [ -f "$PKG_DIR/quickstart/Makefile" ]; then
         log " 🔧 修正 quickstart backend 依赖..."
-        # 这些包在 ImmortalWrt feeds 中不存在，需要移除或替换
-        # mdadm -> 可能在 feeds/packages/admin/mdadm
-        # parted -> 可能在 feeds/packages/utils/parted
-        # shadow-useradd/shadow-utils -> 使用 shadow 包
-        # smartd/smartmontools -> 可能在 feeds/packages/admin/smartmontools
-        # 这里先显示原始依赖
+        # 显示原始依赖
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/quickstart/Makefile" | head -10
-        # 尝试替换为 ImmortalWrt 中可用的包名
-        sed -i 's/\bmdadm\b/mdadm/g' "$PKG_DIR/quickstart/Makefile"
-        sed -i 's/\bparted\b/parted/g' "$PKG_DIR/quickstart/Makefile"
-        sed -i 's/\bshadow-useradd\b/shadow-useradd/g' "$PKG_DIR/quickstart/Makefile"
-        sed -i 's/\bshadow-utils\b/shadow-utils/g' "$PKG_DIR/quickstart/Makefile"
+        # 替换不存在的包名为 ImmortalWrt feeds 中可用的包
+        # smartd -> smartmontools (在 feeds/packages/admin/smartmontools)
         sed -i 's/\bsmartd\b/smartmontools/g' "$PKG_DIR/quickstart/Makefile"
-        sed -i 's/\bsmartmontools\b/smartmontools/g' "$PKG_DIR/quickstart/Makefile"
-        sed -i 's/\bsmartmontools-drivedb\b/smartmontools-drivedb/g' "$PKG_DIR/quickstart/Makefile"
-        log " ✅ quickstart 依赖已尝试修正"
+        # smartmontools-drivedb 通常包含在 smartmontools 中，移除单独依赖
+        sed -i 's/\bsmartmontools-drivedb\b//g' "$PKG_DIR/quickstart/Makefile"
+        # shadow-useradd/shadow-utils -> shadow (在 feeds/packages/utils/shadow)
+        sed -i 's/\bshadow-useradd\b/shadow/g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/\bshadow-utils\b/shadow/g' "$PKG_DIR/quickstart/Makefile"
+        # mdadm 在 feeds/packages/admin/mdadm (通常可用)
+        # parted 在 feeds/packages/utils/parted (通常可用)
+        # lsblk 在 feeds/packages/utils/util-linux (通常已包含)
+        # 移除多余空格
+        sed -i 's/  \+/ /g' "$PKG_DIR/quickstart/Makefile"
+        sed -i 's/DEPENDS:= /DEPENDS:=/g' "$PKG_DIR/quickstart/Makefile"
+        log " ✅ quickstart 依赖已修正"
         grep -E "(DEPENDS|LUCI_DEPENDS)" "$PKG_DIR/quickstart/Makefile" | head -10
     fi
     endgroup
