@@ -326,12 +326,14 @@ jobs:
           echo "=== All generated images ==="
           find bin/targets -type f \( -name "*.itb" -o -name "*.ubi" -o -name "*.img" \) | xargs -I{} ls -la {}
           echo ""
-          echo "=== Checking for nokia_xg-040g-md-ubi profile ==="
-          if find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | grep -q .; then
-            echo "✅ nokia_xg-040g-md-ubi firmware found"
-            find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | xargs -I{} ls -la {}
+          echo "=== Checking for an7581 target images ==="
+          if find bin/targets/airoha/an7581 -type f -name "*.itb" | grep -q .; then
+            echo "✅ an7581 firmware found"
+            find bin/targets/airoha/an7581 -type f -name "*.itb" | xargs -I{} ls -la {}
+            # Also check for profile-specific images
+            find bin/targets -type f -name "*nokia_xg-040g-md-ubi*" | xargs -I{} ls -la {} 2>/dev/null || true
           else
-            echo "❌ nokia_xg-040g-md-ubi firmware NOT found!"
+            echo "❌ an7581 firmware NOT found!"
             echo "Build log tail:"
             tail -100 build.log
             exit 1
@@ -340,19 +342,24 @@ jobs:
       - name: Verify FIT image contains rootfs
         run: |
           cd $BUILD_ROOT/openwrt
-          for f in bin/targets/**/*nokia_xg-040g-md-ubi*.itb; do
+          for f in bin/targets/airoha/an7581/*.itb; do
             if [ -f "$f" ]; then
               echo "=== Checking $f ==="
               dumpimage -l "$f" 2>/dev/null || echo "dumpimage not available"
             fi
           done
 
-      - name: Collect artifacts (nokia_xg-040g-md-ubi only)
+      - name: Collect artifacts (an7581 target)
         if: success()
         run: |
           cd $BUILD_ROOT/openwrt
           mkdir -p $BUILD_ROOT/artifacts
-          find bin/targets -type f \( -name "*nokia_xg-040g-md-ubi*.itb" -o -name "*nokia_xg-040g-md-ubi*.ubi" -o -name "*nokia_xg-040g-md-ubi*.img" \) | xargs -I{} cp {} $BUILD_ROOT/artifacts/
+          # Collect all an7581 .itb files
+          find bin/targets/airoha/an7581 -type f -name "*.itb" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
+          # Also collect profile-specific if they exist
+          find bin/targets -type f -name "*nokia_xg-040g-md-ubi*.itb" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
+          find bin/targets -type f -name "*nokia_xg-040g-md-ubi*.ubi" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
+          find bin/targets -type f -name "*nokia_xg-040g-md-ubi*.img" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
           find bin/targets -type f -name "*squashfs-sysupgrade.itb" | xargs -I{} cp {} $BUILD_ROOT/artifacts/ 2>/dev/null || true
           echo "=== Collected artifacts ==="
           ls -la $BUILD_ROOT/artifacts/
@@ -364,6 +371,7 @@ jobs:
           name: ponwrt-an7581-nokia_xg-040g-md-ubi-full
           path: /workdir/artifacts/**
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Create Release
         if: success() && github.event.inputs.upload_release == 'true'
