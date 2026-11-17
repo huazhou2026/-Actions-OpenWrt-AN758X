@@ -54,14 +54,14 @@ readonly PKG_LIST=(
     "luci-app-store|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-app-store"
     # iStore quickstart: 在 linkease/nas-packages-luci/luci/luci-app-quickstart
     "luci-app-quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages-luci|main|luci/luci-app-quickstart"
-    # iStore quickstart backend: 在 linkease/nas-packages/network/services/quickstart
-    "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages|main|network/services/quickstart"
     # iStore libtaskd: 在 istoreos/istore/luci/luci-lib-taskd
     "luci-lib-taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-taskd"
     # iStore libxterm: 在 istoreos/istore/luci/luci-lib-xterm
     "luci-lib-xterm|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/luci-lib-xterm"
     # iStore taskd: 在 istoreos/istore/luci/taskd
     "taskd|${ADD_ISTORE}|https://github.com/istoreos/istore|main|luci/taskd"
+    # quickstart backend: 禁用，依赖太多 ImmortalWrt 中不存在的包
+    # "quickstart|${ADD_ISTORE}|https://github.com/linkease/nas-packages|main|network/services/quickstart"
 )
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 die() { echo "::error::$*" >&2; exit 1; }
